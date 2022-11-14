@@ -10,6 +10,8 @@ import javax.swing.JOptionPane;
 import netzklassen.List;
 import netzklassen.Server;
 
+import java.util.Optional;
+
 public class MessengerServer extends Server {
     private List<Teilnehmer> angemeldeteTeilnehmer;
     private UserRepository userRepository;
@@ -37,16 +39,36 @@ public class MessengerServer extends Server {
   @Override
   public synchronized void processMessage(String pClientIP, int pClientPort, String pMessage) {
     String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
-    System.out.println("S0:" + pMessageZerteilt[0] + "!");
+    System.out.println("S0:" + pMessage + "!");
     if (!istTeilnehmerAngemeldet(pClientIP, pClientPort)) {
       if (pMessageZerteilt[0].equals(PROT.CS_AN)) {
-        if (istNameVergeben(pMessageZerteilt[1]))
-          send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Der Name ist bereits vergeben!");
-        else {
-          meldeTeilnehmerAn(pClientIP, pClientPort, pMessageZerteilt[1]);
-          send(pClientIP, pClientPort,PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]);         
-        }
-      } else {
+          String name = pMessageZerteilt[1];
+          String password = pMessageZerteilt[2];
+          Optional<User> user = userRepository.getUser(name);
+          if(user.isEmpty()) {
+              send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!");
+          } else {
+              if(!password.equals(user.get().getPassword())) {
+                  send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
+              }else {
+                  if (istNameVergeben(name))
+                      send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Der Name ist bereits vergeben!");
+                  else {
+                      meldeTeilnehmerAn(pClientIP, pClientPort, pMessageZerteilt[1]);
+                      send(pClientIP, pClientPort,PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]);
+                  }
+              }
+          }
+
+      } else if(pMessageZerteilt[0].equals(PROT.CS_RG)) {
+          String name = pMessageZerteilt[1];
+          String password = pMessageZerteilt[2];
+          if(userRepository.createUser(name, password)) {
+              send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Benutzer " + name + " erfolgreich erstellt");
+          } else {
+              send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Fehler bei der Registrierung");
+          }
+      }else {
         System.out.println("FEHLER");
         send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Sie sind nicht angemeldet!");
       }

@@ -12,19 +12,10 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Objects;
 
-import javax.swing.DefaultListModel;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
+import javax.swing.*;
 import javax.swing.text.DefaultCaret;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.ScrollPaneConstants;
-import javax.swing.WindowConstants;
 
 public class MessengerClientGUI extends JFrame {
     /**
@@ -43,7 +34,7 @@ public class MessengerClientGUI extends JFrame {
     private JTextField tfNachricht = new JTextField();
     private JLabel lNachricht = new JLabel();
     private JButton bSenden = new JButton();
-    private JTextField tfName = new JTextField();
+    private JButton bRegister = new JButton();
     private JButton bLogIn = new JButton();
     private JButton bLogOut = new JButton();
     // Ende Attribute
@@ -118,29 +109,54 @@ public class MessengerClientGUI extends JFrame {
             });
         cp.add(bSenden);
 
-        tfName.setBounds(208, 19, 193, 33);
-        tfName.setText("EigenerName");
-        cp.add(tfName);
+
+
+        bRegister.setBounds(324, 19, 87, 33);
+        bRegister.setText("Registrieren");
+        bRegister.setMargin(new Insets(2, 2, 2, 2));
+        bRegister.addActionListener(evt -> {
+            JPanel registerPanel = new JPanel();
+            JTextField nameField = new JTextField(10);
+            JTextField passwordField = new JTextField(10);
+            registerPanel.add(new JLabel("Name:"));
+            registerPanel.add(nameField);
+            registerPanel.add(Box.createHorizontalStrut(15));
+            registerPanel.add(new JLabel("Passwort:"));
+            registerPanel.add(passwordField);
+
+            int result = JOptionPane.showConfirmDialog(this, registerPanel, "Registrierung", JOptionPane.OK_CANCEL_OPTION);
+            if(result==JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
+                messengerClient.registrieren(nameField.getText(), passwordField.getText());
+            }
+        });
+        cp.add(bRegister);
+
 
         bLogIn.setBounds(416, 19, 67, 33);
         bLogIn.setText("Login");
         bLogIn.setMargin(new Insets(2, 2, 2, 2));
-        bLogIn.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent evt) {
-                    bLogIn_ActionPerformed(evt);
-                }
-            });
+        bLogIn.addActionListener(evt -> {
+            JPanel registerPanel = new JPanel();
+            JTextField nameField = new JTextField(10);
+            JTextField passwordField = new JTextField(10);
+            registerPanel.add(new JLabel("Name:"));
+            registerPanel.add(nameField);
+            registerPanel.add(Box.createHorizontalStrut(15));
+            registerPanel.add(new JLabel("Passwort:"));
+            registerPanel.add(passwordField);
+
+            int result = JOptionPane.showConfirmDialog(this, registerPanel, "LogIn", JOptionPane.OK_CANCEL_OPTION);
+            if(result==JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
+                messengerClient.anmelden(nameField.getText(), passwordField.getText());
+            }
+        });
         cp.add(bLogIn);
 
         bLogOut.setBounds(488, 19, 75, 33);
         bLogOut.setText("Logout");
         bLogOut.setMargin(new Insets(2, 2, 2, 2));
         bLogOut.setEnabled(false);
-        bLogOut.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent evt) {
-                    bLogOut_ActionPerformed(evt);
-                }
-            });
+        bLogOut.addActionListener(evt -> bLogOut_ActionPerformed(evt));
         cp.add(bLogOut);
         // Ende Komponenten
 
@@ -161,11 +177,6 @@ public class MessengerClientGUI extends JFrame {
         }
     } // end of bSenden_ActionPerformed
 
-    public void bLogIn_ActionPerformed(ActionEvent evt) {
-        messengerClient.anmelden(tfName.getText().replaceAll(" ", ""));
-
-    } // end of bLogIn_ActionPerformed
-
     public void bLogOut_ActionPerformed(ActionEvent evt) {
         messengerClient.abmelden();
     } // end of bLogOut_ActionPerformed
@@ -176,8 +187,8 @@ public class MessengerClientGUI extends JFrame {
 
     public void initialisiereNachAnmeldung() {
         bLogIn.setEnabled(false);
+        bRegister.setEnabled(false);
         bLogOut.setEnabled(true);
-        tfName.setEnabled(false);
     }
 
     public void leereNachLogout() {
@@ -185,7 +196,6 @@ public class MessengerClientGUI extends JFrame {
         lstTeilnehmerModel.clear();
         bLogIn.setEnabled(true);
         bLogOut.setEnabled(false);
-        tfName.setEnabled(true);
     }
 
     public void ergaenzeNachrichten(String pNachricht) {

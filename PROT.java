@@ -30,8 +30,11 @@ public class PROT {
 	
 	// Nachrichten Client an Server -------------------------------
 
-	// Mit Trenner wird der Teilnehmername angehaengt
+	// Mit Trenner wird der Teilnehmername und das Passwort angehaengt
 	public static final String CS_AN = "+ANMELDEN";
+
+	// Mit Trenner wird der Teilnehmername und das Passwort angehaengt
+	public static final String CS_RG = "+REGISTRIEREN";
 
 	public static final String CS_GA ="+GIB_ALLE_TN";
         
