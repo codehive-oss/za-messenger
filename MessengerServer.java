@@ -12,6 +12,7 @@ import netzklassen.Server;
 
 public class MessengerServer extends Server {
     private List<Teilnehmer> angemeldeteTeilnehmer;
+    private UserRepository userRepository;
 
     public MessengerServer() {
         super(20017);
@@ -22,6 +23,9 @@ public class MessengerServer extends Server {
             System.out.println("Server ist gestartet.");
         }
 
+        userRepository = new UserRepository();
+        userRepository.createTable();
+        System.out.println("Datenbank initialisiert");
     }
 
     @Override

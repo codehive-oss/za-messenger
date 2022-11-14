@@ -1,3 +1,6 @@
 *.class
 *.ctxt
 *.jfm
+*.iml
+.idea
+dev.db
