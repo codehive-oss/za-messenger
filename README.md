@@ -6,9 +6,9 @@ Eine Erweiterung des messengers, den Schüler des Informatikunterrichts in NRW b
 
 - [x] sqlite Datenbank anbindung
 - [x] basic Auth
-- [ ] Passwort Hashing
+- [x] Passwort Hashing
+- [x] Broadcast Nachrichten
 - [ ] Ende zu Ende Verschlüsselung
-- [ ] Broadcast nNachrichten
 - [ ] De(Serialisierung)
 
 Contributions sind erwünscht 😊

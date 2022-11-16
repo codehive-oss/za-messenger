@@ -24,7 +24,7 @@ public class MessengerClientGUI extends JFrame {
     private static final long serialVersionUID = 2749433956491096074L;
     // Anfang Attribute
     private JLabel lProgrammtitel = new JLabel();
-    private JList<String> lstTeilnehmer = new JList<String>();
+    private JList<String> lstTeilnehmer = new JList();
     private DefaultListModel lstTeilnehmerModel = new DefaultListModel();
     private JScrollPane lstTeilnehmerScrollPane = new JScrollPane(lstTeilnehmer);
     private JLabel lTeilnehmer = new JLabel();
@@ -73,7 +73,7 @@ public class MessengerClientGUI extends JFrame {
 
         lstTeilnehmer.setModel(lstTeilnehmerModel);
         lstTeilnehmerScrollPane.setBounds(416, 112, 145, 297);
-        lstTeilnehmer.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        lstTeilnehmer.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         cp.add(lstTeilnehmerScrollPane);
 
         lTeilnehmer.setBounds(416, 83, 133, 20);
@@ -102,11 +102,7 @@ public class MessengerClientGUI extends JFrame {
         bSenden.setBounds(336, 363, 65, 33);
         bSenden.setText("Senden");
         bSenden.setMargin(new Insets(2, 2, 2, 2));
-        bSenden.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent evt) {
-                    bSenden_ActionPerformed(evt);
-                }
-            });
+        bSenden.addActionListener(this::bSenden_ActionPerformed);
         cp.add(bSenden);
 
 
@@ -171,8 +167,8 @@ public class MessengerClientGUI extends JFrame {
     // Anfang ActionListener-Methoden
 
     public void bSenden_ActionPerformed(ActionEvent evt) {
-        if (lstTeilnehmer.getSelectedValue() != null) {
-            messengerClient.nachrichtSenden(lstTeilnehmer.getSelectedValue(), tfNachricht.getText());
+        if (!lstTeilnehmer.getSelectedValuesList().isEmpty()) {
+            messengerClient.nachrichtSenden(lstTeilnehmer.getSelectedValuesList(), tfNachricht.getText());
             tfNachricht.setText("");
         }
     } // end of bSenden_ActionPerformed

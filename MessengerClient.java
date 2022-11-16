@@ -8,6 +8,7 @@
 import netzklassen.Client;
 
 import javax.swing.*;
+import java.util.List;
 
 public class MessengerClient extends Client {
     MessengerClient _this;
@@ -119,11 +120,11 @@ public class MessengerClient extends Client {
         send(PROT.CS_AB);
     }
 
-    public void nachrichtSenden(String pEmpfaenger, String pNachricht) {
+    public void nachrichtSenden(List<String> pEmpfaenger, String pNachricht) {
         if (!pNachricht.equals("")) {
-            send(PROT.CS_TX + PROT.TRENNER + pEmpfaenger + PROT.TRENNER
+            send(PROT.CS_TX + PROT.TRENNER + String.join(PROT.TRENNER, pEmpfaenger) + PROT.TRENNER
                     + pNachricht);
-            messengerClientGUI.ergaenzeNachrichten("Du schreibst an " + pEmpfaenger + "\n" + pNachricht);
+            messengerClientGUI.ergaenzeNachrichten("Du schreibst an " + String.join(PROT.TRENNER, pEmpfaenger) + "\n" + pNachricht);
         }
     }
 }
