@@ -48,7 +48,7 @@ public class MessengerServer extends Server {
           if(user.isEmpty()) {
               send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!");
           } else {
-              if(!password.equals(user.get().getPassword())) {
+              if(!Argon2.INSTANCE.verify(user.get().getPassword(), password)) {
                   send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
               }else {
                   if (istNameVergeben(name))
@@ -63,7 +63,7 @@ public class MessengerServer extends Server {
       } else if(pMessageZerteilt[0].equals(PROT.CS_RG)) {
           String name = pMessageZerteilt[1];
           String password = pMessageZerteilt[2];
-          if(userRepository.createUser(name, password)) {
+          if(userRepository.createUser(name, Argon2.hash(password))) {
               send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Benutzer " + name + " erfolgreich erstellt");
           } else {
               send(pClientIP, pClientPort,PROT.SC_ER + PROT.TRENNER + "Fehler bei der Registrierung");
