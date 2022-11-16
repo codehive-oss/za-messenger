@@ -56,7 +56,7 @@ public class MessengerServer extends Server {
                         send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
                     } else {
                         if (istNameVergeben(name))
-                            send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Der Name ist bereits vergeben!");
+                            send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Du bist bereits woanders eingeloggt.");
                         else {
                             meldeTeilnehmerAn(pClientIP, pClientPort, pMessageZerteilt[1]);
                             send(pClientIP, pClientPort, PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]);
