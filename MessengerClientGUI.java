@@ -1,42 +1,37 @@
 /**
- *
  * Beschreibung
  *
- * @version 1.0 
+ * @version 1.0
  * @author QUA-LiS NRW
  */
-import java.awt.Container;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Insets;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.Objects;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.io.Serial;
 
 public class MessengerClientGUI extends JFrame {
     /**
-     * 
+     *
      */
+    @Serial
     private static final long serialVersionUID = 2749433956491096074L;
     // Anfang Attribute
-    private JLabel lProgrammtitel = new JLabel();
-    private JList<String> lstTeilnehmer = new JList();
-    private DefaultListModel lstTeilnehmerModel = new DefaultListModel();
-    private JScrollPane lstTeilnehmerScrollPane = new JScrollPane(lstTeilnehmer);
-    private JLabel lTeilnehmer = new JLabel();
-    private JTextArea taNachrichten = new JTextArea("");
-    private JScrollPane taNachrichtenScrollPane = new JScrollPane(taNachrichten);
-    private JLabel lProtokoll = new JLabel();
-    private JTextField tfNachricht = new JTextField();
-    private JLabel lNachricht = new JLabel();
-    private JButton bSenden = new JButton();
-    private JButton bRegister = new JButton();
-    private JButton bLogIn = new JButton();
-    private JButton bLogOut = new JButton();
+    private final JLabel lProgrammtitel = new JLabel();
+    private final JList<String> lstTeilnehmer = new JList<>();
+    private final DefaultListModel<String> lstTeilnehmerModel = new DefaultListModel<>();
+    private final JScrollPane lstTeilnehmerScrollPane = new JScrollPane(lstTeilnehmer);
+    private final JLabel lTeilnehmer = new JLabel();
+    private final JTextArea taNachrichten = new JTextArea("");
+    private final JScrollPane taNachrichtenScrollPane = new JScrollPane(taNachrichten);
+    private final JLabel lProtokoll = new JLabel();
+    private final JTextField tfNachricht = new JTextField();
+    private final JLabel lNachricht = new JLabel();
+    private final JButton bSenden = new JButton();
+    private final JButton bRegister = new JButton();
+    private final JButton bLogIn = new JButton();
+    private final JButton bLogOut = new JButton();
     // Ende Attribute
 
     // Eigene Attribute
@@ -85,7 +80,7 @@ public class MessengerClientGUI extends JFrame {
         taNachrichtenScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         taNachrichten.setLineWrap(true);
         cp.add(taNachrichtenScrollPane);
-        DefaultCaret caret = (DefaultCaret)taNachrichten.getCaret();
+        DefaultCaret caret = (DefaultCaret) taNachrichten.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
         lProtokoll.setBounds(16, 83, 142, 20);
@@ -106,7 +101,6 @@ public class MessengerClientGUI extends JFrame {
         cp.add(bSenden);
 
 
-
         bRegister.setBounds(324, 19, 87, 33);
         bRegister.setText("Registrieren");
         bRegister.setMargin(new Insets(2, 2, 2, 2));
@@ -121,7 +115,7 @@ public class MessengerClientGUI extends JFrame {
             registerPanel.add(passwordField);
 
             int result = JOptionPane.showConfirmDialog(this, registerPanel, "Registrierung", JOptionPane.OK_CANCEL_OPTION);
-            if(result==JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
+            if (result == JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
                 messengerClient.registrieren(nameField.getText(), passwordField.getText());
             }
         });
@@ -142,7 +136,7 @@ public class MessengerClientGUI extends JFrame {
             registerPanel.add(passwordField);
 
             int result = JOptionPane.showConfirmDialog(this, registerPanel, "LogIn", JOptionPane.OK_CANCEL_OPTION);
-            if(result==JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
+            if (result == JOptionPane.OK_OPTION && !nameField.getText().equals("") && !passwordField.getText().equals("")) {
                 messengerClient.anmelden(nameField.getText(), passwordField.getText());
             }
         });
@@ -152,7 +146,7 @@ public class MessengerClientGUI extends JFrame {
         bLogOut.setText("Logout");
         bLogOut.setMargin(new Insets(2, 2, 2, 2));
         bLogOut.setEnabled(false);
-        bLogOut.addActionListener(evt -> bLogOut_ActionPerformed(evt));
+        bLogOut.addActionListener(this::bLogOut_ActionPerformed);
         cp.add(bLogOut);
         // Ende Komponenten
 
@@ -176,10 +170,10 @@ public class MessengerClientGUI extends JFrame {
     public void bLogOut_ActionPerformed(ActionEvent evt) {
         messengerClient.abmelden();
     } // end of bLogOut_ActionPerformed
-
-    // Ende ActionListener-Methoden
-
-    // Anfang eigene Methoden
+    //
+    //    // Ende ActionListener-Methoden
+    //
+    //    // Anfang eigene Methoden
 
     public void initialisiereNachAnmeldung() {
         bLogIn.setEnabled(false);

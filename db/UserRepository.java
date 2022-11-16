@@ -1,3 +1,5 @@
+package db;
+
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +12,8 @@ import java.util.Optional;
 
 public class UserRepository {
 
-    private HikariDataSource dataSource;
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final HikariDataSource dataSource;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public UserRepository(String dbName) {
         dataSource = SqlitePool.getHikarDatasource(dbName);

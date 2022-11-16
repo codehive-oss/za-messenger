@@ -5,6 +5,7 @@
  * @version 1.0
  */
 
+import net.PROT;
 import netzklassen.Client;
 
 import javax.swing.*;
@@ -13,7 +14,7 @@ import java.util.List;
 public class MessengerClient extends Client {
     MessengerClient _this;
 
-    private MessengerClientGUI messengerClientGUI;
+    private final MessengerClientGUI messengerClientGUI;
     String eigenerName;
     boolean angemeldet;
 
@@ -41,25 +42,21 @@ public class MessengerClient extends Client {
 
         if (!angemeldet) {
             switch (pMessageZerteilt[0]) {
-                case PROT.SC_WK:
-                    String willkommensnachricht = "";
+                case PROT.SC_WK -> {
+                    StringBuilder willkommensnachricht = new StringBuilder();
                     for (int index = 1; index < pMessageZerteilt.length; index++) {
-                        willkommensnachricht += pMessageZerteilt[index] + " ";
+                        willkommensnachricht.append(pMessageZerteilt[index]).append(" ");
                     }
-                    JOptionPane.showMessageDialog(null, willkommensnachricht);
-                    break;
-
-                case PROT.SC_AO:
+                    JOptionPane.showMessageDialog(null, willkommensnachricht.toString());
+                }
+                case PROT.SC_AO -> {
                     eigenerName = pMessageZerteilt[1];
                     angemeldet = true;
                     send(PROT.CS_GA);
                     send(PROT.CS_NA);
                     messengerClientGUI.initialisiereNachAnmeldung();
-                    break;
-                case PROT.SC_ER:
-                    JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
-                    break;
-
+                }
+                case PROT.SC_ER -> JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
             }
         } else {
             switch (pMessageZerteilt[0]) {
@@ -79,7 +76,6 @@ public class MessengerClient extends Client {
                     } else {
                         messengerClientGUI.leereNachLogout();
                     }
-                    ;
                     break;
 
                 case PROT.SC_AT:

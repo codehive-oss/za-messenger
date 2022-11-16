@@ -1,7 +1,9 @@
+package db;
+
 public class User {
 
-    private String name;
-    private String password;
+    private final String name;
+    private final String password;
 
     public User(String name, String password) {
         this.name = name;

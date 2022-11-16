@@ -1,8 +1,9 @@
- 
+package net;
+
 /**
  * Protokoll des Messenger-Dienstes
  * @version 1.0
- * @authorQUA-LiS NRW
+ * @author QUA-LiS NRW
  */
 public class PROT {
 

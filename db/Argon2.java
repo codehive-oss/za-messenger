@@ -1,3 +1,5 @@
+package db;
+
 import de.mkammerer.argon2.Argon2Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,11 +1,7 @@
-
-/**
- * Ein Messenger-Server
- *
- * @author QUA-LiS NRW
- * @version 1.0
- */
-
+import db.Argon2;
+import db.User;
+import db.UserRepository;
+import net.PROT;
 import netzklassen.List;
 import netzklassen.Server;
 
@@ -13,16 +9,23 @@ import javax.swing.*;
 import java.util.Arrays;
 import java.util.Optional;
 
+/**
+ * Ein Messenger-Server
+ *
+ * @author QUA-LiS NRW
+ * @version 1.0
+ */
 public class MessengerServer extends Server {
     private List<Teilnehmer> angemeldeteTeilnehmer;
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
     public MessengerServer() {
         super(20017);
-        if (!isOpen())
+        if (!isOpen()) {
             JOptionPane.showMessageDialog(null, "Fehler beim Starten des Servers auf Port 20017!");
-        else {
-            angemeldeteTeilnehmer = new List<Teilnehmer>();
+            System.exit(1);
+        } else {
+            angemeldeteTeilnehmer = new List<>();
             System.out.println("Server ist gestartet.");
         }
 
@@ -49,7 +52,7 @@ public class MessengerServer extends Server {
                 if (user.isEmpty()) {
                     send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!");
                 } else {
-                    if (!Argon2.INSTANCE.verify(user.get().getPassword(), password)) {
+                    if (!Argon2.INSTANCE.verify(user.get().getPassword(), password.toCharArray())) {
                         send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
                     } else {
                         if (istNameVergeben(name))
@@ -75,21 +78,18 @@ public class MessengerServer extends Server {
             }
         } else {
             switch (pMessageZerteilt[0]) {
-                case PROT.CS_AN:
-                    send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Sie sind bereits angemeldet!");
-                    break;
-                case PROT.CS_GA:
-                    send(pClientIP, pClientPort, PROT.SC_AT + PROT.TRENNER + gibAlleAngemeldetenTeilnehmernamen());
-                    break;
-                case PROT.CS_NA:
-                    sendToAll(PROT.SC_ZU + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
-                    break;
-                case PROT.CS_AB:
+                case PROT.CS_AN ->
+                        send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Sie sind bereits angemeldet!");
+                case PROT.CS_GA ->
+                        send(pClientIP, pClientPort, PROT.SC_AT + PROT.TRENNER + gibAlleAngemeldetenTeilnehmernamen());
+                case PROT.CS_NA ->
+                        sendToAll(PROT.SC_ZU + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
+                case PROT.CS_AB -> {
                     sendToAll(PROT.SC_AB + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
                     meldeTeilnehmerAb(pClientIP, pClientPort);
                     closeConnection(pClientIP, pClientPort);
-                    break;
-                case PROT.CS_TX:
+                }
+                case PROT.CS_TX -> {
                     String[] empfaenger = Arrays.copyOfRange(pMessageZerteilt, 1, pMessageZerteilt.length - 1);
                     for (String s : empfaenger) {
                         String empfaengerIP = findeIPAdresseZuTeilnehmer(s);
@@ -99,7 +99,7 @@ public class MessengerServer extends Server {
                                 + senderName
                                 + PROT.TRENNER + pMessageZerteilt[pMessageZerteilt.length - 1]);
                     }
-                    break;
+                }
             }
         }
     }
@@ -208,13 +208,13 @@ public class MessengerServer extends Server {
     }
 
     private String gibAlleAngemeldetenTeilnehmernamen() {
-        String teilnehmernamen = "";
+        StringBuilder teilnehmernamen = new StringBuilder();
         angemeldeteTeilnehmer.toFirst();
         while (angemeldeteTeilnehmer.hasAccess()) {
-            teilnehmernamen = teilnehmernamen + angemeldeteTeilnehmer.getContent().gibName() + PROT.TRENNER;
+            teilnehmernamen.append(angemeldeteTeilnehmer.getContent().gibName()).append(PROT.TRENNER);
             angemeldeteTeilnehmer.next();
         }
-        if (!teilnehmernamen.equals("")) {
+        if (!teilnehmernamen.toString().equals("")) {
             return (teilnehmernamen.substring(0, teilnehmernamen.length() - 1));
         } else {
             return ("");

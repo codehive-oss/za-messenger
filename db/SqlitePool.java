@@ -1,3 +1,5 @@
+package db;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -8,7 +10,7 @@ public class SqlitePool {
 
     public static HikariDataSource getHikarDatasource(String dbName) {
         HikariConfig config = new HikariConfig();
-        config.setPoolName("QuboPool");
+        config.setPoolName("MessengerPool");
         config.setDriverClassName("org.sqlite.JDBC");
         config.setJdbcUrl("jdbc:sqlite:%s".formatted(dbName));
         config.setConnectionTestQuery("SELECT 1");
