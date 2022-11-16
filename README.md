@@ -5,7 +5,7 @@ Eine Erweiterung des messengers, den Schüler des Informatikunterrichts in NRW b
 ### Features
 
 - [x] sqlite Datenbank anbindung
-- [x] basic Auth
+- [x] Basic Auth
 - [x] Passwort Hashing
 - [x] Broadcast Nachrichten
 - [ ] Ende zu Ende Verschlüsselung
