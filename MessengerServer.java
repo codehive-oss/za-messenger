@@ -7,6 +7,7 @@ import javax.swing.*;
 import net.PROT;
 import netzklassen.List;
 import netzklassen.Server;
+import java.nio.ByteBuffer;
 
 /**
  * Ein Messenger-Server
@@ -45,8 +46,8 @@ public class MessengerServer extends Server {
 
   @Override
   public synchronized void processMessage(String pClientIP, int pClientPort,
-                                          byte[] pData) {
-    String pMessage = new String(pData);
+                                          ByteBuffer pData) {
+    String pMessage = new String(pData.array());
     String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
     System.out.println("S0:" + pMessage + "!");
     if (!istTeilnehmerAngemeldet(pClientIP, pClientPort)) {

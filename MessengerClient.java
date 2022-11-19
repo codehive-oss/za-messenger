@@ -9,6 +9,7 @@ import java.util.List;
 import javax.swing.*;
 import net.PROT;
 import netzklassen.Client;
+import java.nio.ByteBuffer;
 
 public class MessengerClient extends Client {
   MessengerClient _this;
@@ -36,8 +37,8 @@ public class MessengerClient extends Client {
   }
 
   @Override
-  public void processMessage(byte[] pData) {
-    String pMessage = new String(pData);
+  public void processMessage(ByteBuffer _buffer) {
+    String pMessage = new String(_buffer.array());
     String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
     System.out.println("C0:" + pMessage + "!");
 

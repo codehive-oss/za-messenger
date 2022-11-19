@@ -6,13 +6,9 @@ package net;
  * @author QUA-LiS NRW
  */
 public class PROT {
-
   // Nachrichten Server an Client -------------------------------
-
   public static final String SC_WK = "+WILLKOMMEN";
-
   public static final String SC_AO = "+Anmeldung_OK";
-
   public static final String SC_ZU = "+Zugang";
 
   // Mit Trenner werden Namen aller Teilnehmer, getrennt durch Trenner,
@@ -21,7 +17,6 @@ public class PROT {
 
   // Mit Trenner wird der Name des Absenders und die Nachricht angehaengt
   public static final String SC_TX = "+TEXT";
-
   public static final String SC_BY = "+BYE";
 
   // Nach Trennzeichen wird der Name des abgemeldeten Teilnehmers angehängt
@@ -41,6 +36,7 @@ public class PROT {
   public static final String CS_GA = "+GIB_ALLE_TN";
 
   public static final String CS_NA = "+SENDE_NAME_AN_ALLE";
+
   // Mit Trenner wird der Name des Empfaengers und die Nachricht angehaengt
   public static final String CS_TX = "+TEXT";
 
@@ -48,3 +44,24 @@ public class PROT {
 
   public static final String TRENNER = ":";
 }
+
+
+// public enum ServerToClientMessage {
+//   WELCOME,
+//   LOGIN_OK,
+//   ACCESS,
+//   ALL_MEMBERS,
+//   TEXT,
+//   BYE,
+//   EXIT,
+//   ERROR,
+// }
+
+// public enum ClientToServerMessage {
+//   LOGIN,
+//   REGISTER,
+//   GIVE_ALL_MEMBER,
+//   SEND_NAME_TO_ALL,
+//   TEXT,
+//   LOGOUT
+// }

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 
 /**
  * <p>
@@ -57,19 +58,21 @@ public abstract class Client {
         }
       }
 
-      public byte[] receive() {
+      public ByteBuffer receive() {
         try {
           int length = fromServer.readInt();
           byte[] data = new byte[length];
           fromServer.readFully(data);
-          return data;
+
+          return ByteBuffer.wrap(data);
         } catch (IOException e) {
         }
 
         return null;
       }
 
-      public void send(byte[] data) {
+      public void send(ByteBuffer buffer) {
+        byte[] data = buffer.array();
         int len = data.length;
 
         if (len <= 0) {
@@ -108,17 +111,14 @@ public abstract class Client {
     }
 
     public void run() {
-      byte[] message;
+      ByteBuffer message;
       while (active) {
         message = socketWrapper.receive();
-        if (message.length > 0)
-          processMessage(message);
-        else
-          close();
+        processMessage(message);
       }
     }
 
-    private void send(byte[] pMessage) {
+    private void send(ByteBuffer pMessage) {
       if (active)
         socketWrapper.send(pMessage);
     }
@@ -136,7 +136,9 @@ public abstract class Client {
   }
 
   public boolean isConnected() { return (messageHandler.active); }
-  public void send(byte[] pMessage) { messageHandler.send(pMessage); }
+  public void send(ByteBuffer pMessage) { messageHandler.send(pMessage); }
+  // TODO: Make all messages sent via bytebuffer
+  public void send(byte[] pMessage) { send(ByteBuffer.wrap(pMessage)); }
   public void close() { messageHandler.close(); }
-  public abstract void processMessage(byte[] pMessage);
+  public abstract void processMessage(ByteBuffer pMessage);
 }

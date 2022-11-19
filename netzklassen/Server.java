@@ -26,6 +26,7 @@ import java.io.*;
  * @version 30.08.2016
  */
 import java.net.*;
+import java.nio.ByteBuffer;
 
 public abstract class Server {
   private NewConnectionHandler connectionHandler;
@@ -100,20 +101,21 @@ public abstract class Server {
         }
       }
 
-      public byte[] receive() {
+      public ByteBuffer receive() {
         try {
           int length = fromClient.readInt();
           byte[] data = new byte[length];
           fromClient.readFully(data);
-          return data;
+          return ByteBuffer.wrap(data);
         } catch (IOException e) {
         }
 
         return null;
       }
 
-      public void send(byte[] pMessage) {
-        int len = pMessage.length;
+      public void send(ByteBuffer pMessage) {
+        byte[] data = pMessage.array();
+        int len = data.length;
 
         if (len <= 0) {
           throw new IllegalArgumentException("Data needs to have some data");
@@ -124,7 +126,7 @@ public abstract class Server {
           toClient.writeInt(len);
 
           // Adjust the start index when needed
-          toClient.write(pMessage, 0, len);
+          toClient.write(data, 0, len);
         } catch (IOException e) {
         }
       }
@@ -170,7 +172,7 @@ public abstract class Server {
     }
 
     public void run() {
-      byte[] message;
+      ByteBuffer message;
       while (active) {
         message = socketWrapper.receive();
         if (message != null)
@@ -190,7 +192,7 @@ public abstract class Server {
       }
     }
 
-    public void send(byte[] pMessage) {
+    public void send(ByteBuffer pMessage) {
       if (active)
         socketWrapper.send(pMessage);
     }
@@ -223,14 +225,19 @@ public abstract class Server {
       return (false);
   }
 
-  public void send(String pClientIP, int pClientPort, byte[] pMessage) {
+  public void send(String pClientIP, int pClientPort, ByteBuffer pMessage) {
     ClientMessageHandler aMessageHandler =
         this.findClientMessageHandler(pClientIP, pClientPort);
     if (aMessageHandler != null)
       aMessageHandler.send(pMessage);
   }
 
-  public void sendToAll(byte[] pMessage) {
+  // TODO: Make all messages sent via bytebuffer
+  public void send(String _clientIp, int _clientPort, byte[] _buffer) {
+    send(_clientIp, _clientPort, ByteBuffer.wrap(_buffer));
+  }
+
+  public void sendToAll(ByteBuffer pMessage) {
     synchronized (messageHandlers) {
       messageHandlers.toFirst();
       while (messageHandlers.hasAccess()) {
@@ -239,6 +246,9 @@ public abstract class Server {
       }
     }
   }
+
+  // TODO: Make all messages sent via bytebuffer
+  public void sendToAll(byte[] _buffer) { sendToAll(ByteBuffer.wrap(_buffer)); }
 
   public void closeConnection(String pClientIP, int pClientPort) {
     ClientMessageHandler aMessageHandler =
@@ -269,7 +279,7 @@ public abstract class Server {
   public abstract void processNewConnection(String pClientIP, int pClientPort);
 
   public abstract void processMessage(String pClientIP, int pClientPort,
-                                      byte[] pMessage);
+                                      ByteBuffer pMessage);
 
   public abstract void processClosingConnection(String pClientIP,
                                                 int pClientPort);
