@@ -18,8 +18,10 @@ public class MessengerServer extends Server {
   private List<Teilnehmer> angemeldeteTeilnehmer;
   private final UserRepository userRepository;
 
-  public MessengerServer() {
-    super(20017);
+  public MessengerServer() { this(20017); }
+
+  public MessengerServer(int _port) {
+    super(_port);
     if (!isOpen()) {
       JOptionPane.showMessageDialog(
           null, "Fehler beim Starten des Servers auf Port 20017!");
@@ -37,12 +39,14 @@ public class MessengerServer extends Server {
   @Override
   public void processNewConnection(String pClientIP, int pClientPort) {
     send(pClientIP, pClientPort,
-         PROT.SC_WK + PROT.TRENNER + "Willkommen auf dem Messenger-Server!");
+         (PROT.SC_WK + PROT.TRENNER + "Willkommen auf dem Messenger-Server!")
+             .getBytes());
   }
 
   @Override
   public synchronized void processMessage(String pClientIP, int pClientPort,
-                                          String pMessage) {
+                                          byte[] pData) {
+    String pMessage = new String(pData);
     String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
     System.out.println("S0:" + pMessage + "!");
     if (!istTeilnehmerAngemeldet(pClientIP, pClientPort)) {
@@ -52,21 +56,24 @@ public class MessengerServer extends Server {
         Optional<User> user = userRepository.getUser(name);
         if (user.isEmpty()) {
           send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!");
+               (PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!")
+                   .getBytes());
         } else {
           if (!Argon2.INSTANCE.verify(user.get().getPassword(),
                                       password.toCharArray())) {
             send(pClientIP, pClientPort,
-                 PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
+                 (PROT.SC_ER + PROT.TRENNER + "Falsches Passwort").getBytes());
           } else {
             if (istNameVergeben(name))
               send(pClientIP, pClientPort,
-                   PROT.SC_ER + PROT.TRENNER +
-                       "Du bist bereits woanders eingeloggt.");
+                   (PROT.SC_ER + PROT.TRENNER +
+                    "Du bist bereits woanders eingeloggt.")
+                       .getBytes());
             else {
               meldeTeilnehmerAn(pClientIP, pClientPort, pMessageZerteilt[1]);
-              send(pClientIP, pClientPort,
-                   PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]);
+              send(
+                  pClientIP, pClientPort,
+                  (PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]).getBytes());
             }
           }
         }
@@ -76,27 +83,30 @@ public class MessengerServer extends Server {
         String password = pMessageZerteilt[2];
         if (userRepository.createUser(name, Argon2.hash(password))) {
           send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Benutzer " + name +
-                   " erfolgreich erstellt");
+               (PROT.SC_ER + PROT.TRENNER + "Benutzer " + name +
+                " erfolgreich erstellt")
+                   .getBytes());
         } else {
           send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Fehler bei der Registrierung");
+               (PROT.SC_ER + PROT.TRENNER + "Fehler bei der Registrierung")
+                   .getBytes());
         }
       } else {
         System.out.println("FEHLER");
         send(pClientIP, pClientPort,
-             PROT.SC_ER + PROT.TRENNER + "Sie sind nicht angemeldet!");
+             (PROT.SC_ER + PROT.TRENNER + "Sie sind nicht angemeldet!")
+                 .getBytes());
       }
     } else {
       switch (pMessageZerteilt[0]) {
                 case PROT.CS_AN ->
-                        send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Sie sind bereits angemeldet!");
+                        send(pClientIP, pClientPort, (PROT.SC_ER + PROT.TRENNER + "Sie sind bereits angemeldet!").getBytes());
                 case PROT.CS_GA ->
-                        send(pClientIP, pClientPort, PROT.SC_AT + PROT.TRENNER + gibAlleAngemeldetenTeilnehmernamen());
+                        send(pClientIP, pClientPort, (PROT.SC_AT + PROT.TRENNER + gibAlleAngemeldetenTeilnehmernamen()).getBytes());
                 case PROT.CS_NA ->
-                        sendToAll(PROT.SC_ZU + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
+                        sendToAll((PROT.SC_ZU + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort)).getBytes());
                 case PROT.CS_AB -> {
-                    sendToAll(PROT.SC_AB + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
+                    sendToAll((PROT.SC_AB + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort)).getBytes());
                     meldeTeilnehmerAb(pClientIP, pClientPort);
                     closeConnection(pClientIP, pClientPort);
                 }
@@ -108,8 +118,10 @@ public class MessengerServer extends Server {
                     String senderName = findeTeilnehmernameZuIPAdresseUndPort(
                         pClientIP, pClientPort);
                     send(empfaengerIP, empfaengerPort,
-                         PROT.SC_TX + PROT.TRENNER + senderName + PROT.TRENNER +
-                             pMessageZerteilt[pMessageZerteilt.length - 1]);
+                         (PROT.SC_TX + PROT.TRENNER + senderName +
+                          PROT.TRENNER +
+                          pMessageZerteilt[pMessageZerteilt.length - 1])
+                             .getBytes());
                   }
                 }
     }
@@ -120,7 +132,7 @@ public class MessengerServer extends Server {
 public synchronized void processClosingConnection(String pClientIP,
                                                   int pClientPort) {
   if (isConnectedTo(pClientIP, pClientPort))
-    send(pClientIP, pClientPort, PROT.SC_BY);
+    send(pClientIP, pClientPort, PROT.SC_BY.getBytes());
 }
 
 private void meldeTeilnehmerAn(String pClientIP, int pClientPort,

@@ -36,7 +36,8 @@ public class MessengerClient extends Client {
   }
 
   @Override
-  public void processMessage(String pMessage) {
+  public void processMessage(byte[] pData) {
+    String pMessage = new String(pData);
     String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
     System.out.println("C0:" + pMessage + "!");
 
@@ -52,8 +53,8 @@ public class MessengerClient extends Client {
                 case PROT.SC_AO -> {
                     eigenerName = pMessageZerteilt[1];
                     angemeldet = true;
-                    send(PROT.CS_GA);
-                    send(PROT.CS_NA);
+                    send(PROT.CS_GA.getBytes());
+                    send(PROT.CS_NA.getBytes());
                     messengerClientGUI.initialisiereNachAnmeldung();
                 }
                 case PROT.SC_ER -> JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
@@ -115,20 +116,20 @@ public class MessengerClient extends Client {
   }
 
   public void registrieren(String pName, String pPasswort) {
-    send(PROT.CS_RG + PROT.TRENNER + pName + PROT.TRENNER + pPasswort);
+    send((PROT.CS_RG + PROT.TRENNER + pName + PROT.TRENNER + pPasswort).getBytes());
   }
 
   public void anmelden(String pName, String pPasswort) {
-    send(PROT.CS_AN + PROT.TRENNER + pName + PROT.TRENNER + pPasswort);
+    send((PROT.CS_AN + PROT.TRENNER + pName + PROT.TRENNER + pPasswort).getBytes());
   }
 
-  public void abmelden() { send(PROT.CS_AB); }
+  public void abmelden() { send(PROT.CS_AB.getBytes()); }
 
   public void nachrichtSenden(List<String> pEmpfaenger, String pNachricht) {
     if (!pNachricht.equals("")) {
-                send(PROT.CS_TX + PROT.TRENNER +
+                send((PROT.CS_TX + PROT.TRENNER +
                      String.join(PROT.TRENNER, pEmpfaenger) + PROT.TRENNER +
-                     pNachricht);
+                     pNachricht).getBytes());
                 messengerClientGUI.ergaenzeNachrichten(
                     "Du schreibst an " +
                     String.join(PROT.TRENNER, pEmpfaenger) + "\n" + pNachricht);

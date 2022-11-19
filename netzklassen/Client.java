@@ -1,6 +1,8 @@
 package netzklassen;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -40,15 +42,14 @@ public abstract class Client {
 
     private class SocketWrapper {
       private Socket socket;
-      private BufferedReader fromServer;
-      private PrintWriter toServer;
+      private DataInputStream fromServer;
+      private DataOutputStream toServer;
 
       public SocketWrapper(String pServerIP, int pServerPort) {
         try {
           socket = new Socket(pServerIP, pServerPort);
-          toServer = new PrintWriter(socket.getOutputStream(), true);
-          fromServer = new BufferedReader(
-              new InputStreamReader(socket.getInputStream()));
+          toServer = new DataOutputStream(socket.getOutputStream());
+          fromServer = new DataInputStream(socket.getInputStream());
         } catch (IOException e) {
           socket = null;
           toServer = null;
@@ -56,18 +57,32 @@ public abstract class Client {
         }
       }
 
-      public String receive() {
-        if (fromServer != null)
-          try {
-            return fromServer.readLine();
-          } catch (IOException e) {
-          }
-        return (null);
+      public byte[] receive() {
+        try {
+          int length = fromServer.readInt();
+          byte[] data = new byte[length];
+          fromServer.readFully(data);
+          return data;
+        } catch (IOException e) {
+        }
+
+        return null;
       }
 
-      public void send(String pMessage) {
-        if (toServer != null) {
-          toServer.println(pMessage);
+      public void send(byte[] data) {
+        int len = data.length;
+
+        if (len <= 0) {
+          throw new IllegalArgumentException("Data needs to have some data");
+        }
+
+        try {
+          // write the length of the buffer
+          toServer.writeInt(len);
+
+          // Adjust the start index when needed
+          toServer.write(data, 0, len);
+        } catch (IOException e) {
         }
       }
 
@@ -93,17 +108,17 @@ public abstract class Client {
     }
 
     public void run() {
-      String message = null;
+      byte[] message;
       while (active) {
         message = socketWrapper.receive();
-        if (message != null)
+        if (message.length > 0)
           processMessage(message);
         else
           close();
       }
     }
 
-    private void send(String pMessage) {
+    private void send(byte[] pMessage) {
       if (active)
         socketWrapper.send(pMessage);
     }
@@ -121,10 +136,7 @@ public abstract class Client {
   }
 
   public boolean isConnected() { return (messageHandler.active); }
-
-  public void send(String pMessage) { messageHandler.send(pMessage); }
-
+  public void send(byte[] pMessage) { messageHandler.send(pMessage); }
   public void close() { messageHandler.close(); }
-
-  public abstract void processMessage(String pMessage);
+  public abstract void processMessage(byte[] pMessage);
 }

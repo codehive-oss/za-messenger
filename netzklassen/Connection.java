@@ -25,6 +25,7 @@ import java.io.*;
  */
 import java.net.*;
 
+// TODO: Make this a parent class of server and client
 public class Connection {
   private Socket socket;
   private BufferedReader fromServer;
