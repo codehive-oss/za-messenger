@@ -5,24 +5,27 @@
  * @version 1.0
  */
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import javax.swing.*;
-import net.PROT;
+import net.*;
+import net.C2S.*;
+import net.S2C.*;
 import netzklassen.Client;
-import java.nio.ByteBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MessengerClient extends Client {
-  MessengerClient _this;
+  private static final Logger logger = LoggerFactory.getLogger(MessengerClient.class);
 
+  // TODO: remove this circular dependency, separate UI from logic
   private final MessengerClientGUI messengerClientGUI;
-  String eigenerName;
-  boolean angemeldet;
+  private String eigenerName;
+  private boolean angemeldet;
 
   public MessengerClient(String pServerIP, int pServerPort,
                          MessengerClientGUI pGUI) {
     super(pServerIP, pServerPort);
-
-    _this = this;
 
     messengerClientGUI = pGUI;
     eigenerName = null;
@@ -38,102 +41,123 @@ public class MessengerClient extends Client {
 
   @Override
   public void processMessage(ByteBuffer _buffer) {
-    String pMessage = new String(_buffer.array());
-    String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
-    System.out.println("C0:" + pMessage + "!");
+    ServerToClient msgId = ServerToClient.fromId(_buffer.getInt());
+    logger.info("Client:" + msgId);
 
     if (!angemeldet) {
-      switch (pMessageZerteilt[0]) {
-                case PROT.SC_WK -> {
-                    StringBuilder willkommensnachricht = new StringBuilder();
-                    for (int index = 1; index < pMessageZerteilt.length; index++) {
-                        willkommensnachricht.append(pMessageZerteilt[index]).append(" ");
-                    }
-                    JOptionPane.showMessageDialog(null, willkommensnachricht.toString());
-                }
-                case PROT.SC_AO -> {
-                    eigenerName = pMessageZerteilt[1];
-                    angemeldet = true;
-                    send(PROT.CS_GA.getBytes());
-                    send(PROT.CS_NA.getBytes());
-                    messengerClientGUI.initialisiereNachAnmeldung();
-                }
-                case PROT.SC_ER -> JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
+      switch (msgId) {
+        case WELCOME -> {
+          PacketWelcome welcome = Packet.deserialize(_buffer.array());
+          JOptionPane.showMessageDialog(null, welcome.message);
+        }
+
+        case LOGIN_OK -> {
+          PacketLoginOk loginOk = Packet.deserialize(_buffer.array());
+          eigenerName = loginOk.username;
+          angemeldet = true;
+
+          // TODO: Create a friendly byte buffer
+          byte[] giveAllMember = Packet.serialize(ClientToServer.getId(ClientToServer.GIVE_ALL_MEMBER));
+          send(giveAllMember);
+
+          byte[] sendNameToAll = Packet.serialize(ClientToServer.getId(ClientToServer.SEND_NAME_TO_ALL));
+          send(sendNameToAll);
+
+          messengerClientGUI.initialisiereNachAnmeldung();
+        }
+
+        case ERROR -> {
+          PacketError error = Packet.deserialize(_buffer.array());
+          JOptionPane.showMessageDialog(null, error.message);
+        }
+      }
+    } else {
+      switch (msgId) {
+        case TEXT -> {
+          PacketText text = Packet.deserialize(_buffer.array());
+          messengerClientGUI.ergaenzeNachrichten(text.author +
+                                                 " schreibt:\n" +
+                                                 text.message);
+        }
+
+        case ACCESS -> {
+          PacketAccess access = Packet.deserialize(_buffer.array());
+          if (!access.username.equals(eigenerName)) {
+            messengerClientGUI.ergaenzeTeilnehmerListe(
+                access.username);
+          }
+
+        }
+
+        case EXIT -> {
+          PacketExit exit = Packet.deserialize(_buffer.array());
+          if (!exit.username.equals(eigenerName)) {
+            messengerClientGUI.loescheNameAusTeilnehmerListe(
+                exit.username);
+          } else {
+            messengerClientGUI.leereNachLogout();
+          }
+        }
+
+        case ALL_MEMBERS -> {
+          PacketAllMembers allMembers = Packet.deserialize(_buffer.array());
+          for (int i = 0; i < allMembers.usernames.length; i++) {
+            if (!allMembers.usernames[i].equals(eigenerName)) {
+              messengerClientGUI.ergaenzeTeilnehmerListe(
+                  allMembers.usernames[i]);
             }
-        } else {
-            switch (pMessageZerteilt[0]) {
-                case PROT.SC_TX:
-                  messengerClientGUI.ergaenzeNachrichten(pMessageZerteilt[1] +
-                                                         " schreibt:\n" +
-                                                         pMessageZerteilt[2]);
-                  break;
+          }
+        }
 
-                case PROT.SC_ZU:
-                  if (!pMessageZerteilt[1].equals(eigenerName)) {
-                    messengerClientGUI.ergaenzeTeilnehmerListe(
-                        pMessageZerteilt[1]);
-                  }
-                  break;
+        case BYE -> {
+          eigenerName = null;
+          angemeldet = false;
+          JOptionPane.showMessageDialog(
+              null,
+              "Verbindung durch den Messenger-Server geschlossen.\nDas Programm wird jetzt beendet.");
+          System.exit(0);
+        }
 
-                case PROT.SC_AB:
-                  if (!pMessageZerteilt[1].equals(eigenerName)) {
-                    messengerClientGUI.loescheNameAusTeilnehmerListe(
-                        pMessageZerteilt[1]);
-                  } else {
-                    messengerClientGUI.leereNachLogout();
-                  }
-                  break;
+        case ERROR -> {
+          PacketError error = new PacketError(new String(_buffer.array()));
+          JOptionPane.showMessageDialog(null, error.message);
+        }
 
-                case PROT.SC_AT:
-                  for (int index = 1; index < pMessageZerteilt.length;
-                       index++) {
-                    if (!pMessageZerteilt[index].equals(eigenerName)) {
-                      messengerClientGUI.ergaenzeTeilnehmerListe(
-                          pMessageZerteilt[index]);
-                    }
-                  }
-                  break;
-
-                case PROT.SC_BY:
-                  eigenerName = null;
-                  angemeldet = false;
-                  JOptionPane.showMessageDialog(
-                      null,
-                      "Verbindung durch den Messenger-Server geschlossen.\nDas Programm wird jetzt beendet.");
-                  System.exit(0);
-                  break;
-
-                case PROT.SC_ER:
-                  JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
-                  break;
-
-                default:
-                  JOptionPane.showMessageDialog(
-                      null,
-                      "Unzulässige Anweisung empfangen: '" + pMessage + "'");
-                  break;
-                }
+        default -> {
+          JOptionPane.showMessageDialog(
+              null,
+              "Unzulässige Anweisung empfangen: '" + msgId + "'");
+        }
+      }
     }
   }
 
   public void registrieren(String pName, String pPasswort) {
-    send((PROT.CS_RG + PROT.TRENNER + pName + PROT.TRENNER + pPasswort).getBytes());
+    PacketRegister register = new PacketRegister(pName, pPasswort);
+    byte[] registerData = Packet.serialize(ClientToServer.getId(ClientToServer.REGISTER), register);
+    send(registerData);
   }
 
   public void anmelden(String pName, String pPasswort) {
-    send((PROT.CS_AN + PROT.TRENNER + pName + PROT.TRENNER + pPasswort).getBytes());
+    PacketLogin login = new PacketLogin(pName, pPasswort);
+    byte[] loginData = Packet.serialize(ClientToServer.getId(ClientToServer.LOGIN), login);
+    send(loginData);
   }
 
-  public void abmelden() { send(PROT.CS_AB.getBytes()); }
+  public void abmelden() {
+    byte[] logoutData = Packet.serialize(ClientToServer.getId(ClientToServer.LOGOUT));
+    send(logoutData);
+  }
 
-  public void nachrichtSenden(List<String> pEmpfaenger, String pNachricht) {
-    if (!pNachricht.equals("")) {
-                send((PROT.CS_TX + PROT.TRENNER +
-                     String.join(PROT.TRENNER, pEmpfaenger) + PROT.TRENNER +
-                     pNachricht).getBytes());
-                messengerClientGUI.ergaenzeNachrichten(
-                    "Du schreibst an " +
-                    String.join(PROT.TRENNER, pEmpfaenger) + "\n" + pNachricht);
+  public void nachrichtSenden(List<String> _receivers, String _message) {
+    if (!_message.equals("")) {
+      PacketMessage message = new PacketMessage(_receivers.toArray(new String[0]), _message);
+      byte[] messageData = Packet.serialize(ClientToServer.getId(ClientToServer.MESSAGE), message);
+      send(messageData);
+
+      messengerClientGUI.ergaenzeNachrichten(
+          "Du schreibst an " +
+          String.join(", ", _receivers) + "\n" + _message);
     }
   }
 }

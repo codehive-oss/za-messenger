@@ -101,20 +101,19 @@ public abstract class Server {
         }
       }
 
-      public ByteBuffer receive() {
+      public byte[] receive() {
         try {
           int length = fromClient.readInt();
           byte[] data = new byte[length];
           fromClient.readFully(data);
-          return ByteBuffer.wrap(data);
+          return data;
         } catch (IOException e) {
         }
 
         return null;
       }
 
-      public void send(ByteBuffer pMessage) {
-        byte[] data = pMessage.array();
+      public void send(byte[] data) {
         int len = data.length;
 
         if (len <= 0) {
@@ -172,13 +171,14 @@ public abstract class Server {
     }
 
     public void run() {
-      ByteBuffer message;
+      byte[] message;
       while (active) {
         message = socketWrapper.receive();
         if (message != null)
           // TODO: Work with Client IDs instead of using IP and Ports
           processMessage(socketWrapper.getClientIP(),
-                         socketWrapper.getClientPort(), message);
+                         socketWrapper.getClientPort(),
+                         ByteBuffer.wrap(message));
         else {
           ClientMessageHandler aMessageHandler = findClientMessageHandler(
               socketWrapper.getClientIP(), socketWrapper.getClientPort());
@@ -192,7 +192,7 @@ public abstract class Server {
       }
     }
 
-    public void send(ByteBuffer pMessage) {
+    public void send(byte[] pMessage) {
       if (active)
         socketWrapper.send(pMessage);
     }
@@ -225,19 +225,18 @@ public abstract class Server {
       return (false);
   }
 
-  public void send(String pClientIP, int pClientPort, ByteBuffer pMessage) {
+  public void send(String pClientIP, int pClientPort, byte[] pMessage) {
     ClientMessageHandler aMessageHandler =
         this.findClientMessageHandler(pClientIP, pClientPort);
     if (aMessageHandler != null)
       aMessageHandler.send(pMessage);
   }
 
-  // TODO: Make all messages sent via bytebuffer
-  public void send(String _clientIp, int _clientPort, byte[] _buffer) {
-    send(_clientIp, _clientPort, ByteBuffer.wrap(_buffer));
+  public void send(String _clientIp, int _clientPort, ByteBuffer _buffer) {
+    send(_clientIp, _clientPort, _buffer.array());
   }
 
-  public void sendToAll(ByteBuffer pMessage) {
+  public void sendToAll(byte[] pMessage) {
     synchronized (messageHandlers) {
       messageHandlers.toFirst();
       while (messageHandlers.hasAccess()) {
@@ -247,8 +246,7 @@ public abstract class Server {
     }
   }
 
-  // TODO: Make all messages sent via bytebuffer
-  public void sendToAll(byte[] _buffer) { sendToAll(ByteBuffer.wrap(_buffer)); }
+  public void sendToAll(ByteBuffer _buffer) { sendToAll(_buffer.array()); }
 
   public void closeConnection(String pClientIP, int pClientPort) {
     ClientMessageHandler aMessageHandler =
