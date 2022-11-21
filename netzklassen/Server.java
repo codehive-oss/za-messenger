@@ -29,293 +29,296 @@ import java.net.*;
 import java.nio.ByteBuffer;
 
 public abstract class Server {
-  private NewConnectionHandler connectionHandler;
-  private List<ClientMessageHandler> messageHandlers;
+    private NewConnectionHandler connectionHandler;
+    private List<ClientMessageHandler> messageHandlers;
 
-  private class NewConnectionHandler extends Thread {
-    private ServerSocket serverSocket;
-    private boolean active;
+    private class NewConnectionHandler extends Thread {
+        private ServerSocket serverSocket;
+        private boolean active;
 
-    public NewConnectionHandler(int pPort) {
-      try {
-        serverSocket = new ServerSocket(pPort);
-        start();
-        active = true;
-      } catch (Exception e) {
-        serverSocket = null;
-        active = false;
-      }
+        public NewConnectionHandler(int pPort) {
+            try {
+                serverSocket = new ServerSocket(pPort);
+                start();
+                active = true;
+            } catch (Exception e) {
+                serverSocket = null;
+                active = false;
+            }
+        }
+
+        public void run() {
+            while (active) {
+                try {
+                    // Warten auf Verbdinungsversuch durch Client:
+                    Socket clientSocket = serverSocket.accept();
+                    // Eingehende Nachrichten vom neu verbundenen Client werden
+                    // in einem eigenen Thread empfangen:
+                    addNewClientMessageHandler(clientSocket);
+                    processNewConnection(clientSocket.getInetAddress().getHostAddress(),
+                            clientSocket.getPort());
+                } catch (IOException e) {
+                    /*
+                     * Kann keine Verbindung zum anfragenden Client aufgebaut werden,
+                     * geschieht nichts.
+                     */
+                }
+            }
+        }
+
+        public void close() {
+            active = false;
+            if (serverSocket != null)
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    /*
+                     * Befindet sich der ServerSocket im accept()-Wartezustand oder wurde
+                     * er bereits geschlossen, geschieht nichts.
+                     */
+                }
+        }
     }
 
-    public void run() {
-      while (active) {
-        try {
-          // Warten auf Verbdinungsversuch durch Client:
-          Socket clientSocket = serverSocket.accept();
-          // Eingehende Nachrichten vom neu verbundenen Client werden
-          // in einem eigenen Thread empfangen:
-          addNewClientMessageHandler(clientSocket);
-          processNewConnection(clientSocket.getInetAddress().getHostAddress(),
-                               clientSocket.getPort());
-        } catch (IOException e) {
-          /*
-           * Kann keine Verbindung zum anfragenden Client aufgebaut werden,
-           * geschieht nichts.
-           */
+    private class ClientMessageHandler extends Thread {
+        private ClientSocketWrapper socketWrapper;
+        private boolean active;
+
+        private class ClientSocketWrapper {
+            private Socket clientSocket;
+            private DataInputStream fromClient;
+            private DataOutputStream toClient;
+
+            public ClientSocketWrapper(Socket pSocket) {
+                try {
+                    clientSocket = pSocket;
+                    toClient = new DataOutputStream(clientSocket.getOutputStream());
+                    fromClient = new DataInputStream(clientSocket.getInputStream());
+                } catch (IOException e) {
+                    clientSocket = null;
+                    toClient = null;
+                    fromClient = null;
+                }
+            }
+
+            public byte[] receive() {
+                try {
+                    int length = fromClient.readInt();
+                    byte[] data = new byte[length];
+                    fromClient.readFully(data);
+                    return data;
+                } catch (IOException e) {
+                }
+
+                return null;
+            }
+
+            public void send(byte[] data) {
+                int len = data.length;
+
+                if (len <= 0) {
+                    throw new IllegalArgumentException("Data needs to have some data");
+                }
+
+                try {
+                    // write the length of the buffer
+                    toClient.writeInt(len);
+
+                    // Adjust the start index when needed
+                    toClient.write(data, 0, len);
+                } catch (IOException e) {
+                }
+            }
+
+            public String getClientIP() {
+                if (clientSocket != null)
+                    return (clientSocket.getInetAddress().getHostAddress());
+                else
+                    return (null); // Gemaess Java-API Rueckgabe bei nicht-verbundenen Sockets
+            }
+
+            public int getClientPort() {
+                if (clientSocket != null)
+                    return (clientSocket.getPort());
+                else
+                    return (0); // Gemaess Java-API Rueckgabe bei nicht-verbundenen
+                                // Sockets
+            }
+
+            public void close() {
+                if (clientSocket != null)
+                    try {
+                        clientSocket.close();
+                    } catch (IOException e) {
+                        /*
+                         * Falls eine Verbindung getrennt werden soll, deren Endpunkt
+                         * nicht mehr existiert bzw. ihrerseits bereits beendet worden ist,
+                         * geschieht nichts.
+                         */
+                    }
+            }
         }
-      }
+
+        private ClientMessageHandler(Socket pClientSocket) {
+            socketWrapper = new ClientSocketWrapper(pClientSocket);
+            if (pClientSocket != null) {
+                start();
+                active = true;
+            } else {
+                active = false;
+            }
+        }
+
+        public void run() {
+            byte[] message;
+            while (active) {
+                message = socketWrapper.receive();
+                if (message != null)
+                    // TODO: Work with Client IDs instead of using IP and Ports
+                    processMessage(socketWrapper.getClientIP(),
+                            socketWrapper.getClientPort(),
+                            ByteBuffer.wrap(message));
+                else {
+                    ClientMessageHandler aMessageHandler = findClientMessageHandler(
+                            socketWrapper.getClientIP(), socketWrapper.getClientPort());
+                    if (aMessageHandler != null) {
+                        aMessageHandler.close();
+                        removeClientMessageHandler(aMessageHandler);
+                        processClosingConnection(socketWrapper.getClientIP(),
+                                socketWrapper.getClientPort());
+                    }
+                }
+            }
+        }
+
+        public void send(byte[] pMessage) {
+            if (active)
+                socketWrapper.send(pMessage);
+        }
+
+        public void close() {
+            if (active) {
+                active = false;
+                socketWrapper.close();
+            }
+        }
+
+        public String getClientIP() {
+            return (socketWrapper.getClientIP());
+        }
+
+        public int getClientPort() {
+            return (socketWrapper.getClientPort());
+        }
     }
 
-    public void close() {
-      active = false;
-      if (serverSocket != null)
-        try {
-          serverSocket.close();
-        } catch (IOException e) {
-          /*
-           * Befindet sich der ServerSocket im accept()-Wartezustand oder wurde
-           * er bereits geschlossen, geschieht nichts.
-           */
-        }
+    public Server(int pPort) {
+        connectionHandler = new NewConnectionHandler(pPort);
+        messageHandlers = new List<ClientMessageHandler>();
     }
-  }
 
-  private class ClientMessageHandler extends Thread {
-    private ClientSocketWrapper socketWrapper;
-    private boolean active;
+    public boolean isOpen() {
+        return (connectionHandler.active);
+    }
 
-    private class ClientSocketWrapper {
-      private Socket clientSocket;
-      private DataInputStream fromClient;
-      private DataOutputStream toClient;
-
-      public ClientSocketWrapper(Socket pSocket) {
-        try {
-          clientSocket = pSocket;
-          toClient = new DataOutputStream(clientSocket.getOutputStream());
-          fromClient = new DataInputStream(clientSocket.getInputStream());
-        } catch (IOException e) {
-          clientSocket = null;
-          toClient = null;
-          fromClient = null;
-        }
-      }
-
-      public byte[] receive() {
-        try {
-          int length = fromClient.readInt();
-          byte[] data = new byte[length];
-          fromClient.readFully(data);
-          return data;
-        } catch (IOException e) {
-        }
-
-        return null;
-      }
-
-      public void send(byte[] data) {
-        int len = data.length;
-
-        if (len <= 0) {
-          throw new IllegalArgumentException("Data needs to have some data");
-        }
-
-        try {
-          // write the length of the buffer
-          toClient.writeInt(len);
-
-          // Adjust the start index when needed
-          toClient.write(data, 0, len);
-        } catch (IOException e) {
-        }
-      }
-
-      public String getClientIP() {
-        if (clientSocket != null)
-          return (clientSocket.getInetAddress().getHostAddress());
+    public boolean isConnectedTo(String pClientIP, int pClientPort) {
+        ClientMessageHandler aMessageHandler = findClientMessageHandler(pClientIP, pClientPort);
+        if (aMessageHandler != null)
+            return (aMessageHandler.active);
         else
-          return (
-              null); // Gemaess Java-API Rueckgabe bei nicht-verbundenen Sockets
-      }
-
-      public int getClientPort() {
-        if (clientSocket != null)
-          return (clientSocket.getPort());
-        else
-          return (0); // Gemaess Java-API Rueckgabe bei nicht-verbundenen
-                      // Sockets
-      }
-
-      public void close() {
-        if (clientSocket != null)
-          try {
-            clientSocket.close();
-          } catch (IOException e) {
-            /*
-             * Falls eine Verbindung getrennt werden soll, deren Endpunkt
-             * nicht mehr existiert bzw. ihrerseits bereits beendet worden ist,
-             * geschieht nichts.
-             */
-          }
-      }
+            return (false);
     }
 
-    private ClientMessageHandler(Socket pClientSocket) {
-      socketWrapper = new ClientSocketWrapper(pClientSocket);
-      if (pClientSocket != null) {
-        start();
-        active = true;
-      } else {
-        active = false;
-      }
+    public void send(String pClientIP, int pClientPort, byte[] pMessage) {
+        ClientMessageHandler aMessageHandler = this.findClientMessageHandler(pClientIP, pClientPort);
+        if (aMessageHandler != null)
+            aMessageHandler.send(pMessage);
     }
 
-    public void run() {
-      byte[] message;
-      while (active) {
-        message = socketWrapper.receive();
-        if (message != null)
-          // TODO: Work with Client IDs instead of using IP and Ports
-          processMessage(socketWrapper.getClientIP(),
-                         socketWrapper.getClientPort(),
-                         ByteBuffer.wrap(message));
-        else {
-          ClientMessageHandler aMessageHandler = findClientMessageHandler(
-              socketWrapper.getClientIP(), socketWrapper.getClientPort());
-          if (aMessageHandler != null) {
+    public void send(String _clientIp, int _clientPort, ByteBuffer _buffer) {
+        send(_clientIp, _clientPort, _buffer.array());
+    }
+
+    public void sendToAll(byte[] pMessage) {
+        synchronized (messageHandlers) {
+            messageHandlers.toFirst();
+            while (messageHandlers.hasAccess()) {
+                messageHandlers.getContent().send(pMessage);
+                messageHandlers.next();
+            }
+        }
+    }
+
+    public void sendToAll(ByteBuffer _buffer) {
+        sendToAll(_buffer.array());
+    }
+
+    public void closeConnection(String pClientIP, int pClientPort) {
+        ClientMessageHandler aMessageHandler = findClientMessageHandler(pClientIP, pClientPort);
+        if (aMessageHandler != null) {
+            processClosingConnection(pClientIP, pClientPort);
             aMessageHandler.close();
             removeClientMessageHandler(aMessageHandler);
-            processClosingConnection(socketWrapper.getClientIP(),
-                                     socketWrapper.getClientPort());
-          }
         }
-      }
-    }
-
-    public void send(byte[] pMessage) {
-      if (active)
-        socketWrapper.send(pMessage);
     }
 
     public void close() {
-      if (active) {
-        active = false;
-        socketWrapper.close();
-      }
+        connectionHandler.close();
+
+        synchronized (messageHandlers) {
+            ClientMessageHandler aMessageHandler;
+            messageHandlers.toFirst();
+            while (messageHandlers.hasAccess()) {
+                aMessageHandler = messageHandlers.getContent();
+                processClosingConnection(aMessageHandler.getClientIP(),
+                        aMessageHandler.getClientPort());
+                aMessageHandler.close();
+                messageHandlers.remove();
+            }
+        }
     }
 
-    public String getClientIP() { return (socketWrapper.getClientIP()); }
+    public abstract void processNewConnection(String pClientIP, int pClientPort);
 
-    public int getClientPort() { return (socketWrapper.getClientPort()); }
-  }
+    public abstract void processMessage(String pClientIP, int pClientPort,
+            ByteBuffer pMessage);
 
-  public Server(int pPort) {
-    connectionHandler = new NewConnectionHandler(pPort);
-    messageHandlers = new List<ClientMessageHandler>();
-  }
+    public abstract void processClosingConnection(String pClientIP,
+            int pClientPort);
 
-  public boolean isOpen() { return (connectionHandler.active); }
-
-  public boolean isConnectedTo(String pClientIP, int pClientPort) {
-    ClientMessageHandler aMessageHandler =
-        findClientMessageHandler(pClientIP, pClientPort);
-    if (aMessageHandler != null)
-      return (aMessageHandler.active);
-    else
-      return (false);
-  }
-
-  public void send(String pClientIP, int pClientPort, byte[] pMessage) {
-    ClientMessageHandler aMessageHandler =
-        this.findClientMessageHandler(pClientIP, pClientPort);
-    if (aMessageHandler != null)
-      aMessageHandler.send(pMessage);
-  }
-
-  public void send(String _clientIp, int _clientPort, ByteBuffer _buffer) {
-    send(_clientIp, _clientPort, _buffer.array());
-  }
-
-  public void sendToAll(byte[] pMessage) {
-    synchronized (messageHandlers) {
-      messageHandlers.toFirst();
-      while (messageHandlers.hasAccess()) {
-        messageHandlers.getContent().send(pMessage);
-        messageHandlers.next();
-      }
+    private void addNewClientMessageHandler(Socket pClientSocket) {
+        synchronized (messageHandlers) {
+            messageHandlers.append(new Server.ClientMessageHandler(pClientSocket));
+        }
     }
-  }
 
-  public void sendToAll(ByteBuffer _buffer) { sendToAll(_buffer.array()); }
-
-  public void closeConnection(String pClientIP, int pClientPort) {
-    ClientMessageHandler aMessageHandler =
-        findClientMessageHandler(pClientIP, pClientPort);
-    if (aMessageHandler != null) {
-      processClosingConnection(pClientIP, pClientPort);
-      aMessageHandler.close();
-      removeClientMessageHandler(aMessageHandler);
+    private void removeClientMessageHandler(ClientMessageHandler pClientMessageHandler) {
+        synchronized (messageHandlers) {
+            messageHandlers.toFirst();
+            while (messageHandlers.hasAccess()) {
+                if (pClientMessageHandler == messageHandlers.getContent()) {
+                    messageHandlers.remove();
+                    return;
+                } else
+                    messageHandlers.next();
+            }
+        }
     }
-  }
 
-  public void close() {
-    connectionHandler.close();
+    private ClientMessageHandler findClientMessageHandler(String pClientIP,
+            int pClientPort) {
+        synchronized (messageHandlers) {
+            ClientMessageHandler aMessageHandler;
+            messageHandlers.toFirst();
 
-    synchronized (messageHandlers) {
-      ClientMessageHandler aMessageHandler;
-      messageHandlers.toFirst();
-      while (messageHandlers.hasAccess()) {
-        aMessageHandler = messageHandlers.getContent();
-        processClosingConnection(aMessageHandler.getClientIP(),
-                                 aMessageHandler.getClientPort());
-        aMessageHandler.close();
-        messageHandlers.remove();
-      }
+            while (messageHandlers.hasAccess()) {
+                aMessageHandler = messageHandlers.getContent();
+                if (aMessageHandler.getClientIP().equals(pClientIP) &&
+                        aMessageHandler.getClientPort() == pClientPort)
+                    return (aMessageHandler);
+                messageHandlers.next();
+            }
+            return null;
+        }
     }
-  }
-
-  public abstract void processNewConnection(String pClientIP, int pClientPort);
-
-  public abstract void processMessage(String pClientIP, int pClientPort,
-                                      ByteBuffer pMessage);
-
-  public abstract void processClosingConnection(String pClientIP,
-                                                int pClientPort);
-
-  private void addNewClientMessageHandler(Socket pClientSocket) {
-    synchronized (messageHandlers) {
-      messageHandlers.append(new Server.ClientMessageHandler(pClientSocket));
-    }
-  }
-
-  private void
-  removeClientMessageHandler(ClientMessageHandler pClientMessageHandler) {
-    synchronized (messageHandlers) {
-      messageHandlers.toFirst();
-      while (messageHandlers.hasAccess()) {
-        if (pClientMessageHandler == messageHandlers.getContent()) {
-          messageHandlers.remove();
-          return;
-        } else
-          messageHandlers.next();
-      }
-    }
-  }
-
-  private ClientMessageHandler findClientMessageHandler(String pClientIP,
-                                                        int pClientPort) {
-    synchronized (messageHandlers) {
-      ClientMessageHandler aMessageHandler;
-      messageHandlers.toFirst();
-
-      while (messageHandlers.hasAccess()) {
-        aMessageHandler = messageHandlers.getContent();
-        if (aMessageHandler.getClientIP().equals(pClientIP) &&
-            aMessageHandler.getClientPort() == pClientPort)
-          return (aMessageHandler);
-        messageHandlers.next();
-      }
-      return null;
-    }
-  }
 }
