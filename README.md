@@ -1,14 +1,15 @@
-## `za-messenger`
+# `za-messenger`
 
 Eine Erweiterung des messengers, den Schüler des Informatikunterrichts in NRW bearbeiten müssen.
 
-### Features
+## Features
 
-- [x] sqlite Datenbank anbindung
+- [x] sqlite Datenbank Anbindung
 - [x] Basic Auth
 - [x] Passwort Hashing
 - [x] Broadcast Nachrichten
+- [x] De(Serialisierung)
+- [ ] Bilder und Videos
 - [ ] Ende zu Ende Verschlüsselung
-- [ ] De(Serialisierung)
 
 Contributions sind erwünscht 😊
