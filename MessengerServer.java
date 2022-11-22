@@ -1,12 +1,22 @@
 import db.Argon2;
 import db.User;
 import db.UserRepository;
-import java.util.Arrays;
-import java.util.Optional;
-import javax.swing.*;
-import net.PROT;
+
+import net.*;
+import net.C2S.*;
+import net.S2C.*;
+
 import netzklassen.List;
 import netzklassen.Server;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Optional;
+
+import javax.swing.*;
 
 /**
  * Ein Messenger-Server
@@ -15,228 +25,249 @@ import netzklassen.Server;
  * @version 1.0
  */
 public class MessengerServer extends Server {
-  private List<Teilnehmer> angemeldeteTeilnehmer;
-  private final UserRepository userRepository;
+    private static final Logger logger = LoggerFactory.getLogger(MessengerServer.class);
 
-  public MessengerServer() {
-    super(20017);
-    if (!isOpen()) {
-      JOptionPane.showMessageDialog(
-          null, "Fehler beim Starten des Servers auf Port 20017!");
-      System.exit(1);
-    } else {
-      angemeldeteTeilnehmer = new List<>();
-      System.out.println("Server ist gestartet.");
+    // TODO: Convert this to a hashmap of client ids and member data
+    private List<Member> members;
+    private final UserRepository userRepository;
+
+    public MessengerServer() {
+        this(20017);
     }
 
-    userRepository = new UserRepository();
-    userRepository.createTable();
-    System.out.println("Datenbank initialisiert");
-  }
-
-  @Override
-  public void processNewConnection(String pClientIP, int pClientPort) {
-    send(pClientIP, pClientPort,
-         PROT.SC_WK + PROT.TRENNER + "Willkommen auf dem Messenger-Server!");
-  }
-
-  @Override
-  public synchronized void processMessage(String pClientIP, int pClientPort,
-                                          String pMessage) {
-    String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
-    System.out.println("S0:" + pMessage + "!");
-    if (!istTeilnehmerAngemeldet(pClientIP, pClientPort)) {
-      if (pMessageZerteilt[0].equals(PROT.CS_AN)) {
-        String name = pMessageZerteilt[1];
-        String password = pMessageZerteilt[2];
-        Optional<User> user = userRepository.getUser(name);
-        if (user.isEmpty()) {
-          send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Benutzer existiert nicht!");
+    public MessengerServer(int _port) {
+        super(_port);
+        if (!isOpen()) {
+            JOptionPane.showMessageDialog(null, "Fehler beim Starten des Servers auf Port 20017!");
+            System.exit(1);
         } else {
-          if (!Argon2.INSTANCE.verify(user.get().getPassword(),
-                                      password.toCharArray())) {
-            send(pClientIP, pClientPort,
-                 PROT.SC_ER + PROT.TRENNER + "Falsches Passwort");
-          } else {
-            if (istNameVergeben(name))
-              send(pClientIP, pClientPort,
-                   PROT.SC_ER + PROT.TRENNER +
-                       "Du bist bereits woanders eingeloggt.");
-            else {
-              meldeTeilnehmerAn(pClientIP, pClientPort, pMessageZerteilt[1]);
-              send(pClientIP, pClientPort,
-                   PROT.SC_AO + PROT.TRENNER + pMessageZerteilt[1]);
+            members = new List<>();
+            logger.info("Server ist gestartet.");
+        }
+
+        userRepository = new UserRepository();
+        userRepository.createTable();
+        logger.info("Datenbank initialisiert");
+    }
+
+    @Override
+    public void processNewConnection(String _clientIp, int _clientPort) {
+        PacketWelcome welcome = new PacketWelcome("Willkommen auf dem Messenger-Server!");
+        send(_clientIp, _clientPort, Packet.serialize(welcome));
+    }
+
+    @Override
+    public synchronized void processMessage(String _clientIp, int _clientPort, ByteBuffer _buffer) {
+        ClientToServer msgId = ClientToServer.fromId(_buffer.getInt());
+        logger.info("Server:" + msgId);
+
+        if (!isClientLoggedIn(_clientIp, _clientPort)) {
+            switch (msgId) {
+                case LOGIN -> {
+                    PacketLogin login = Packet.deserialize(_buffer.array());
+                    String name = login.username;
+                    String password = login.password;
+
+                    Optional<User> user = userRepository.getUser(name);
+                    if (user.isEmpty()) {
+                        PacketError error = new PacketError("Benutzer existiert nicht!");
+                        send(_clientIp, _clientPort, Packet.serialize(error));
+                    } else {
+                        if (!Argon2.INSTANCE.verify(
+                                user.get().getPassword(), password.toCharArray())) {
+                            PacketError error = new PacketError("Falsches Passwort");
+                            send(_clientIp, _clientPort, Packet.serialize(error));
+                        } else {
+                            if (isNameUsed(name)) {
+                                PacketError error =
+                                        new PacketError("Du bist bereits woanders eingeloggt.");
+                                send(_clientIp, _clientPort, Packet.serialize(error));
+                            } else {
+                                loginMember(_clientIp, _clientPort, name);
+                                PacketLoginOk loginOk = new PacketLoginOk(name);
+                                send(_clientIp, _clientPort, Packet.serialize(loginOk));
+                            }
+                        }
+                    }
+                }
+
+                case REGISTER -> {
+                    PacketRegister register = Packet.deserialize(_buffer.array());
+                    String name = register.username;
+                    String password = register.password;
+
+                    if (userRepository.createUser(name, Argon2.hash(password))) {
+                        // TODO: Create a packet for register ok
+                        PacketError error =
+                                new PacketError("Benutzer " + name + " erfolgreich erstellt");
+                        send(_clientIp, _clientPort, Packet.serialize(error));
+                    } else {
+                        PacketError error = new PacketError("Fehler bei der Registrierung");
+                        send(_clientIp, _clientPort, Packet.serialize(error));
+                    }
+                }
+                default -> {
+                    PacketError error = new PacketError("Sie sind nicht loggedIn!");
+                    send(_clientIp, _clientPort, Packet.serialize(error));
+                }
             }
-          }
-        }
-
-      } else if (pMessageZerteilt[0].equals(PROT.CS_RG)) {
-        String name = pMessageZerteilt[1];
-        String password = pMessageZerteilt[2];
-        if (userRepository.createUser(name, Argon2.hash(password))) {
-          send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Benutzer " + name +
-                   " erfolgreich erstellt");
         } else {
-          send(pClientIP, pClientPort,
-               PROT.SC_ER + PROT.TRENNER + "Fehler bei der Registrierung");
+            switch (msgId) {
+                case LOGIN -> {
+                    PacketError error = new PacketError("Sie sind bereits loggedIn!");
+                    send(_clientIp, _clientPort, Packet.serialize(error));
+                }
+                case GIVE_ALL_MEMBER -> {
+                    PacketAllMembers allMembers =
+                            new PacketAllMembers(getAllMember().toArray(new String[0]));
+                    send(_clientIp, _clientPort, Packet.serialize(allMembers));
+                }
+                case SEND_NAME_TO_ALL -> {
+                    PacketAccess access =
+                            new PacketAccess(memberFromIpAndPort(_clientIp, _clientPort));
+                    sendToAll(Packet.serialize(access));
+                }
+                case LOGOUT -> {
+                    PacketExit exit = new PacketExit(memberFromIpAndPort(_clientIp, _clientPort));
+                    sendToAll(Packet.serialize(exit));
+                    logoutMember(_clientIp, _clientPort);
+                    closeConnection(_clientIp, _clientPort);
+                }
+                case MESSAGE -> {
+                    PacketMessage message = Packet.deserialize(_buffer.array());
+
+                    String[] receivers = message.receivers;
+                    String content = message.message;
+
+                    for (String s : receivers) {
+                        String receiverIp = findIpFromMember(s);
+                        int reciverPort = findPortFromMember(s);
+                        String senderName = memberFromIpAndPort(_clientIp, _clientPort);
+
+                        PacketText text = new PacketText(senderName, content);
+                        send(receiverIp, reciverPort, Packet.serialize(text));
+                    }
+                }
+            }
         }
-      } else {
-        System.out.println("FEHLER");
-        send(pClientIP, pClientPort,
-             PROT.SC_ER + PROT.TRENNER + "Sie sind nicht angemeldet!");
-      }
-    } else {
-      switch (pMessageZerteilt[0]) {
-                case PROT.CS_AN ->
-                        send(pClientIP, pClientPort, PROT.SC_ER + PROT.TRENNER + "Sie sind bereits angemeldet!");
-                case PROT.CS_GA ->
-                        send(pClientIP, pClientPort, PROT.SC_AT + PROT.TRENNER + gibAlleAngemeldetenTeilnehmernamen());
-                case PROT.CS_NA ->
-                        sendToAll(PROT.SC_ZU + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
-                case PROT.CS_AB -> {
-                    sendToAll(PROT.SC_AB + PROT.TRENNER + findeTeilnehmernameZuIPAdresseUndPort(pClientIP, pClientPort));
-                    meldeTeilnehmerAb(pClientIP, pClientPort);
-                    closeConnection(pClientIP, pClientPort);
-                }
-                case PROT.CS_TX -> {
-                    String[] empfaenger = Arrays.copyOfRange(pMessageZerteilt, 1, pMessageZerteilt.length - 1);
-                    for (String s : empfaenger) {
-                    String empfaengerIP = findeIPAdresseZuTeilnehmer(s);
-                    int empfaengerPort = findePortZuTeilnehmer(s);
-                    String senderName = findeTeilnehmernameZuIPAdresseUndPort(
-                        pClientIP, pClientPort);
-                    send(empfaengerIP, empfaengerPort,
-                         PROT.SC_TX + PROT.TRENNER + senderName + PROT.TRENNER +
-                             pMessageZerteilt[pMessageZerteilt.length - 1]);
-                  }
-                }
     }
-  }
-}
 
-@Override
-public synchronized void processClosingConnection(String pClientIP,
-                                                  int pClientPort) {
-  if (isConnectedTo(pClientIP, pClientPort))
-    send(pClientIP, pClientPort, PROT.SC_BY);
-}
-
-private void meldeTeilnehmerAn(String pClientIP, int pClientPort,
-                               String pName) {
-  Teilnehmer neuerTeilnehmer = new Teilnehmer(pClientIP, pClientPort, pName);
-  neuerTeilnehmer.setzeAngemeldet(true);
-  angemeldeteTeilnehmer.append(neuerTeilnehmer);
-}
-
-private void meldeTeilnehmerAb(String pClientIP, int pClientPort) {
-  boolean gefunden = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibIPAdresse().equals(pClientIP) &&
-        angemeldeteTeilnehmer.getContent().gibPort() == pClientPort) {
-                angemeldeteTeilnehmer.getContent().setzeAngemeldet(false);
-                angemeldeteTeilnehmer.getContent().setzeName(null);
-                angemeldeteTeilnehmer.remove();
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    @Override
+    public synchronized void processClosingConnection(String _clientIp, int _clientPort) {
+        if (isConnectedTo(_clientIp, _clientPort)) {
+            send(_clientIp, _clientPort, Packet.serialize(ServerToClient.BYE));
+        }
     }
-  }
-}
 
-private boolean istTeilnehmerAngemeldet(String pClientIP, int pClientPort) {
-  boolean gefunden = false;
-  boolean angemeldet = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibIPAdresse().equals(pClientIP) &&
-        angemeldeteTeilnehmer.getContent().gibPort() == pClientPort) {
-                angemeldet = angemeldeteTeilnehmer.getContent().istAngemeldet();
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    private void loginMember(String _clientIp, int _clientPort, String pName) {
+        Member newMember = new Member(_clientIp, _clientPort, pName);
+        newMember.setLoggedIn(true);
+        members.append(newMember);
     }
-  }
-  return (angemeldet);
-}
 
-private boolean istNameVergeben(String pName) {
-  boolean gefunden = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibName().equals(pName)) {
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    private void logoutMember(String _clientIp, int _clientPort) {
+        boolean found = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                members.getContent().setLoggedIn(false);
+                members.getContent().setName(null);
+                members.remove();
+                found = true;
+            } else {
+                members.next();
+            }
+        }
     }
-  }
-  return (gefunden);
-}
 
-private String findeIPAdresseZuTeilnehmer(String pName) {
-  String ipAdresse = null;
-  boolean gefunden = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibName().equals(pName)) {
-                ipAdresse = angemeldeteTeilnehmer.getContent().gibIPAdresse();
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    private boolean isClientLoggedIn(String _clientIp, int _clientPort) {
+        boolean found = false;
+        boolean loggedIn = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                loggedIn = members.getContent().isLoggedIn();
+                found = true;
+            } else {
+                members.next();
+            }
+        }
+        return loggedIn;
     }
-  }
-  return (ipAdresse);
-}
 
-private int findePortZuTeilnehmer(String pName) {
-  int port = -1;
-  boolean gefunden = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibName().equals(pName)) {
-                port = angemeldeteTeilnehmer.getContent().gibPort();
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    private boolean isNameUsed(String pName) {
+        boolean found = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                found = true;
+            } else {
+                members.next();
+            }
+        }
+        return found;
     }
-  }
-  return (port);
-}
 
-private String findeTeilnehmernameZuIPAdresseUndPort(String pClientIP,
-                                                     int pClientPort) {
-  String gefundenerTeilnehmername = null;
-  boolean gefunden = false;
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess() && !gefunden) {
-    if (angemeldeteTeilnehmer.getContent().gibIPAdresse().equals(pClientIP) &&
-        angemeldeteTeilnehmer.getContent().gibPort() == pClientPort) {
-                gefundenerTeilnehmername =
-                    angemeldeteTeilnehmer.getContent().gibName();
-                gefunden = true;
-    } else {
-                angemeldeteTeilnehmer.next();
+    private String findIpFromMember(String pName) {
+        String ipAdresse = null;
+        boolean found = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                ipAdresse = members.getContent().getIp();
+                found = true;
+            } else {
+                members.next();
+            }
+        }
+        return ipAdresse;
     }
-  }
-  return (gefundenerTeilnehmername);
-}
 
-private String gibAlleAngemeldetenTeilnehmernamen() {
-  StringBuilder teilnehmernamen = new StringBuilder();
-  angemeldeteTeilnehmer.toFirst();
-  while (angemeldeteTeilnehmer.hasAccess()) {
-    teilnehmernamen.append(angemeldeteTeilnehmer.getContent().gibName())
-        .append(PROT.TRENNER);
-    angemeldeteTeilnehmer.next();
-  }
-  if (!teilnehmernamen.toString().equals("")) {
-    return (teilnehmernamen.substring(0, teilnehmernamen.length() - 1));
-  } else {
-    return ("");
-  }
-}
+    private int findPortFromMember(String pName) {
+        int port = -1;
+        boolean found = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                port = members.getContent().getPort();
+                found = true;
+            } else {
+                members.next();
+            }
+        }
+        return port;
+    }
 
-public static void main(String[] args) { new MessengerServer(); }
+    private String memberFromIpAndPort(String _clientIp, int _clientPort) {
+        String foundMember = null;
+        boolean found = false;
+        members.toFirst();
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                foundMember = members.getContent().getName();
+                found = true;
+            } else {
+                members.next();
+            }
+        }
+        return foundMember;
+    }
+
+    private ArrayList<String> getAllMember() {
+        ArrayList<String> allMembers = new ArrayList<String>();
+
+        members.toFirst();
+        while (members.hasAccess()) {
+            allMembers.add(members.getContent().getName());
+            members.next();
+        }
+        return allMembers;
+    }
+
+    public static void main(String[] args) {
+        new MessengerServer();
+    }
 }

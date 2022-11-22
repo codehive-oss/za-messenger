@@ -4,134 +4,148 @@
  * @author QUA-LiS NRW
  * @version 1.0
  */
+import net.*;
+import net.C2S.*;
+import net.S2C.*;
 
-import java.util.List;
-import javax.swing.*;
-import net.PROT;
 import netzklassen.Client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.ByteBuffer;
+import java.util.List;
+
+import javax.swing.*;
+
 public class MessengerClient extends Client {
-  MessengerClient _this;
+    private static final Logger logger = LoggerFactory.getLogger(MessengerClient.class);
 
-  private final MessengerClientGUI messengerClientGUI;
-  String eigenerName;
-  boolean angemeldet;
+    // TODO: remove this circular dependency, separate UI from logic, maybe using the observer pattern?
+    private final MessengerClientGUI messengerClientGUI;
+    private String myName;
+    private boolean isLoggedIn;
 
-  public MessengerClient(String pServerIP, int pServerPort,
-                         MessengerClientGUI pGUI) {
-    super(pServerIP, pServerPort);
+    public MessengerClient(String pServerIP, int pServerPort, MessengerClientGUI pGUI) {
+        super(pServerIP, pServerPort);
 
-    _this = this;
+        messengerClientGUI = pGUI;
+        myName = null;
+        isLoggedIn = false;
 
-    messengerClientGUI = pGUI;
-    eigenerName = null;
-    angemeldet = false;
-
-    if (!isConnected()) {
-      JOptionPane.showMessageDialog(
-          null,
-          "Fehler beim Herstellen der Verbindung!\nDas Programm wird jetzt beendet.");
-      System.exit(1);
+        if (!isConnected()) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Fehler beim Herstellen der Verbindung!\nDas Programm wird jetzt beendet.");
+            System.exit(1);
+        }
     }
-  }
 
-  @Override
-  public void processMessage(String pMessage) {
-    String[] pMessageZerteilt = pMessage.split(PROT.TRENNER);
-    System.out.println("C0:" + pMessage + "!");
+    @Override
+    public void processMessage(ByteBuffer _buffer) {
+        ServerToClient msgId = ServerToClient.fromId(_buffer.getInt());
+        logger.info("Client:" + msgId);
 
-    if (!angemeldet) {
-      switch (pMessageZerteilt[0]) {
-                case PROT.SC_WK -> {
-                    StringBuilder willkommensnachricht = new StringBuilder();
-                    for (int index = 1; index < pMessageZerteilt.length; index++) {
-                        willkommensnachricht.append(pMessageZerteilt[index]).append(" ");
-                    }
-                    JOptionPane.showMessageDialog(null, willkommensnachricht.toString());
+        if (!isLoggedIn) {
+            switch (msgId) {
+                case WELCOME -> {
+                    PacketWelcome welcome = Packet.deserialize(_buffer);
+                    JOptionPane.showMessageDialog(null, welcome.message);
                 }
-                case PROT.SC_AO -> {
-                    eigenerName = pMessageZerteilt[1];
-                    angemeldet = true;
-                    send(PROT.CS_GA);
-                    send(PROT.CS_NA);
+
+                case LOGIN_OK -> {
+                    PacketLoginOk loginOk = Packet.deserialize(_buffer);
+                    myName = loginOk.username;
+                    isLoggedIn = true;
+
+                    send(Packet.serialize(ClientToServer.GIVE_ALL_MEMBER));
+                    send(Packet.serialize(ClientToServer.SEND_NAME_TO_ALL));
+
                     messengerClientGUI.initialisiereNachAnmeldung();
                 }
-                case PROT.SC_ER -> JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
+
+                case ERROR -> {
+                    PacketError error = Packet.deserialize(_buffer.array());
+                    JOptionPane.showMessageDialog(null, error.message);
+                }
             }
         } else {
-            switch (pMessageZerteilt[0]) {
-                case PROT.SC_TX:
-                  messengerClientGUI.ergaenzeNachrichten(pMessageZerteilt[1] +
-                                                         " schreibt:\n" +
-                                                         pMessageZerteilt[2]);
-                  break;
-
-                case PROT.SC_ZU:
-                  if (!pMessageZerteilt[1].equals(eigenerName)) {
-                    messengerClientGUI.ergaenzeTeilnehmerListe(
-                        pMessageZerteilt[1]);
-                  }
-                  break;
-
-                case PROT.SC_AB:
-                  if (!pMessageZerteilt[1].equals(eigenerName)) {
-                    messengerClientGUI.loescheNameAusTeilnehmerListe(
-                        pMessageZerteilt[1]);
-                  } else {
-                    messengerClientGUI.leereNachLogout();
-                  }
-                  break;
-
-                case PROT.SC_AT:
-                  for (int index = 1; index < pMessageZerteilt.length;
-                       index++) {
-                    if (!pMessageZerteilt[index].equals(eigenerName)) {
-                      messengerClientGUI.ergaenzeTeilnehmerListe(
-                          pMessageZerteilt[index]);
-                    }
-                  }
-                  break;
-
-                case PROT.SC_BY:
-                  eigenerName = null;
-                  angemeldet = false;
-                  JOptionPane.showMessageDialog(
-                      null,
-                      "Verbindung durch den Messenger-Server geschlossen.\nDas Programm wird jetzt beendet.");
-                  System.exit(0);
-                  break;
-
-                case PROT.SC_ER:
-                  JOptionPane.showMessageDialog(null, pMessageZerteilt[1]);
-                  break;
-
-                default:
-                  JOptionPane.showMessageDialog(
-                      null,
-                      "Unzulässige Anweisung empfangen: '" + pMessage + "'");
-                  break;
+            switch (msgId) {
+                case TEXT -> {
+                    PacketText text = Packet.deserialize(_buffer.array());
+                    messengerClientGUI.ergaenzeNachrichten(
+                            text.author + " schreibt:\n" + text.message);
                 }
+
+                case ACCESS -> {
+                    PacketAccess access = Packet.deserialize(_buffer.array());
+                    if (!access.username.equals(myName)) {
+                        messengerClientGUI.ergaenzeTeilnehmerListe(access.username);
+                    }
+                }
+
+                case EXIT -> {
+                    PacketExit exit = Packet.deserialize(_buffer.array());
+                    if (!exit.username.equals(myName)) {
+                        messengerClientGUI.loescheNameAusTeilnehmerListe(exit.username);
+                    } else {
+                        messengerClientGUI.leereNachLogout();
+                    }
+                }
+
+                case ALL_MEMBERS -> {
+                    PacketAllMembers allMembers = Packet.deserialize(_buffer.array());
+                    for (int i = 0; i < allMembers.usernames.length; i++) {
+                        if (!allMembers.usernames[i].equals(myName)) {
+                            messengerClientGUI.ergaenzeTeilnehmerListe(allMembers.usernames[i]);
+                        }
+                    }
+                }
+
+                case BYE -> {
+                    myName = null;
+                    isLoggedIn = false;
+                    JOptionPane.showMessageDialog(
+                            null,
+                            "Verbindung durch den Messenger-Server geschlossen.\n"
+                                    + "Das Programm wird jetzt beendet.");
+                    System.exit(0);
+                }
+
+                case ERROR -> {
+                    PacketError error = new PacketError(new String(_buffer.array()));
+                    JOptionPane.showMessageDialog(null, error.message);
+                }
+
+                default -> {
+                    JOptionPane.showMessageDialog(
+                            null, "Unzulässige Anweisung empfangen: '" + msgId + "'");
+                }
+            }
+        }
     }
-  }
 
-  public void registrieren(String pName, String pPasswort) {
-    send(PROT.CS_RG + PROT.TRENNER + pName + PROT.TRENNER + pPasswort);
-  }
-
-  public void anmelden(String pName, String pPasswort) {
-    send(PROT.CS_AN + PROT.TRENNER + pName + PROT.TRENNER + pPasswort);
-  }
-
-  public void abmelden() { send(PROT.CS_AB); }
-
-  public void nachrichtSenden(List<String> pEmpfaenger, String pNachricht) {
-    if (!pNachricht.equals("")) {
-                send(PROT.CS_TX + PROT.TRENNER +
-                     String.join(PROT.TRENNER, pEmpfaenger) + PROT.TRENNER +
-                     pNachricht);
-                messengerClientGUI.ergaenzeNachrichten(
-                    "Du schreibst an " +
-                    String.join(PROT.TRENNER, pEmpfaenger) + "\n" + pNachricht);
+    public void registrieren(String pName, String pPasswort) {
+        PacketRegister register = new PacketRegister(pName, pPasswort);
+        send(Packet.serialize(register));
     }
-  }
+
+    public void anmelden(String pName, String pPasswort) {
+        PacketLogin login = new PacketLogin(pName, pPasswort);
+        send(Packet.serialize(login));
+    }
+
+    public void abmelden() {
+        send(Packet.serialize(ClientToServer.LOGOUT));
+    }
+
+    public void nachrichtSenden(List<String> _receivers, String _message) {
+        if (!_message.equals("")) {
+            PacketMessage message = new PacketMessage(_receivers.toArray(new String[0]), _message);
+            send(Packet.serialize(message));
+
+            messengerClientGUI.ergaenzeNachrichten(
+                    "Du schreibst an " + String.join(", ", _receivers) + "\n" + _message);
+        }
+    }
 }
