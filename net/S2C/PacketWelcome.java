@@ -8,4 +8,8 @@ public class PacketWelcome extends Packet {
     public PacketWelcome(String _message) {
         this.message = _message;
     }
+
+    public int getPacketId() {
+        return ServerToClient.getId(ServerToClient.WELCOME);
+    }
 }

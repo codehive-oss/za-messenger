@@ -8,4 +8,8 @@ public class PacketLoginOk extends Packet {
     public PacketLoginOk(String _username) {
         this.username = _username;
     }
+
+    public int getPacketId() {
+        return ServerToClient.getId(ServerToClient.LOGIN_OK);
+    }
 }

@@ -10,4 +10,8 @@ public class PacketMessage extends Packet {
         this.receivers = _receivers;
         this.message = _message;
     }
+
+    public int getPacketId() {
+        return ClientToServer.getId(ClientToServer.MESSAGE);
+    }
 }

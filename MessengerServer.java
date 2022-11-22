@@ -52,9 +52,7 @@ public class MessengerServer extends Server {
     @Override
     public void processNewConnection(String _clientIp, int _clientPort) {
         PacketWelcome welcome = new PacketWelcome("Willkommen auf dem Messenger-Server!");
-        byte[] welcomeData =
-                Packet.serialize(ServerToClient.getId(ServerToClient.WELCOME), welcome);
-        send(_clientIp, _clientPort, welcomeData);
+        send(_clientIp, _clientPort, Packet.serialize(welcome));
     }
 
     @Override
@@ -72,33 +70,21 @@ public class MessengerServer extends Server {
                     Optional<User> user = userRepository.getUser(name);
                     if (user.isEmpty()) {
                         PacketError error = new PacketError("Benutzer existiert nicht!");
-                        byte[] errorData =
-                                Packet.serialize(ServerToClient.getId(ServerToClient.ERROR), error);
-                        send(_clientIp, _clientPort, errorData);
+                        send(_clientIp, _clientPort, Packet.serialize(error));
                     } else {
                         if (!Argon2.INSTANCE.verify(
                                 user.get().getPassword(), password.toCharArray())) {
                             PacketError error = new PacketError("Falsches Passwort");
-                            byte[] errorData =
-                                    Packet.serialize(
-                                            ServerToClient.getId(ServerToClient.ERROR), error);
-                            send(_clientIp, _clientPort, errorData);
+                            send(_clientIp, _clientPort, Packet.serialize(error));
                         } else {
                             if (istNameVergeben(name)) {
                                 PacketError error =
                                         new PacketError("Du bist bereits woanders eingeloggt.");
-                                byte[] errorData =
-                                        Packet.serialize(
-                                                ServerToClient.getId(ServerToClient.ERROR), error);
-                                send(_clientIp, _clientPort, errorData);
+                                send(_clientIp, _clientPort, Packet.serialize(error));
                             } else {
                                 meldeTeilnehmerAn(_clientIp, _clientPort, name);
                                 PacketLoginOk loginOk = new PacketLoginOk(name);
-                                byte[] loginOkData =
-                                        Packet.serialize(
-                                                ServerToClient.getId(ServerToClient.LOGIN_OK),
-                                                loginOk);
-                                send(_clientIp, _clientPort, loginOkData);
+                                send(_clientIp, _clientPort, Packet.serialize(loginOk));
                             }
                         }
                     }
@@ -113,51 +99,36 @@ public class MessengerServer extends Server {
                         // TODO: Create a packet for register ok
                         PacketError error =
                                 new PacketError("Benutzer " + name + " erfolgreich erstellt");
-                        byte[] errorData =
-                                Packet.serialize(ServerToClient.getId(ServerToClient.ERROR), error);
-                        send(_clientIp, _clientPort, errorData);
+                        send(_clientIp, _clientPort, Packet.serialize(error));
                     } else {
                         PacketError error = new PacketError("Fehler bei der Registrierung");
-                        byte[] errorData =
-                                Packet.serialize(ServerToClient.getId(ServerToClient.ERROR), error);
-                        send(_clientIp, _clientPort, errorData);
+                        send(_clientIp, _clientPort, Packet.serialize(error));
                     }
                 }
                 default -> {
                     PacketError error = new PacketError("Sie sind nicht angemeldet!");
-                    byte[] errorData =
-                            Packet.serialize(ServerToClient.getId(ServerToClient.ERROR), error);
-                    send(_clientIp, _clientPort, errorData);
+                    send(_clientIp, _clientPort, Packet.serialize(error));
                 }
             }
         } else {
             switch (msgId) {
                 case LOGIN -> {
                     PacketError error = new PacketError("Sie sind bereits angemeldet!");
-                    byte[] errorData =
-                            Packet.serialize(ServerToClient.getId(ServerToClient.ERROR), error);
-                    send(_clientIp, _clientPort, errorData);
+                    send(_clientIp, _clientPort, Packet.serialize(error));
                 }
                 case GIVE_ALL_MEMBER -> {
                     PacketAllMembers allMembers =
                             new PacketAllMembers(getAllMember().toArray(new String[0]));
-                    byte[] allMembersData =
-                            Packet.serialize(
-                                    ServerToClient.getId(ServerToClient.ALL_MEMBERS), allMembers);
-                    send(_clientIp, _clientPort, allMembersData);
+                    send(_clientIp, _clientPort, Packet.serialize(allMembers));
                 }
                 case SEND_NAME_TO_ALL -> {
                     PacketAccess access =
                             new PacketAccess(memberFromIpAndPort(_clientIp, _clientPort));
-                    byte[] accessData =
-                            Packet.serialize(ServerToClient.getId(ServerToClient.ACCESS), access);
-                    sendToAll(accessData);
+                    sendToAll(Packet.serialize(access));
                 }
                 case LOGOUT -> {
                     PacketExit exit = new PacketExit(memberFromIpAndPort(_clientIp, _clientPort));
-                    byte[] exitData =
-                            Packet.serialize(ServerToClient.getId(ServerToClient.EXIT), exit);
-                    sendToAll(exitData);
+                    sendToAll(Packet.serialize(exit));
                     meldeTeilnehmerAb(_clientIp, _clientPort);
                     closeConnection(_clientIp, _clientPort);
                 }
@@ -173,9 +144,7 @@ public class MessengerServer extends Server {
                         String senderName = memberFromIpAndPort(_clientIp, _clientPort);
 
                         PacketText text = new PacketText(senderName, content);
-                        byte[] textData =
-                                Packet.serialize(ServerToClient.getId(ServerToClient.TEXT), text);
-                        send(receiverIp, reciverPort, textData);
+                        send(receiverIp, reciverPort, Packet.serialize(text));
                     }
                 }
             }
@@ -185,8 +154,7 @@ public class MessengerServer extends Server {
     @Override
     public synchronized void processClosingConnection(String _clientIp, int _clientPort) {
         if (isConnectedTo(_clientIp, _clientPort)) {
-            byte[] byeData = Packet.serialize(ServerToClient.getId(ServerToClient.BYE));
-            send(_clientIp, _clientPort, byeData);
+            send(_clientIp, _clientPort, Packet.serialize(ServerToClient.BYE));
         }
     }
 

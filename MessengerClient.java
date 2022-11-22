@@ -49,23 +49,17 @@ public class MessengerClient extends Client {
         if (!angemeldet) {
             switch (msgId) {
                 case WELCOME -> {
-                    PacketWelcome welcome = Packet.deserialize(_buffer.array());
+                    PacketWelcome welcome = Packet.deserialize(_buffer);
                     JOptionPane.showMessageDialog(null, welcome.message);
                 }
 
                 case LOGIN_OK -> {
-                    PacketLoginOk loginOk = Packet.deserialize(_buffer.array());
+                    PacketLoginOk loginOk = Packet.deserialize(_buffer);
                     eigenerName = loginOk.username;
                     angemeldet = true;
 
-                    // TODO: Create a friendly byte buffer
-                    byte[] giveAllMember =
-                            Packet.serialize(ClientToServer.getId(ClientToServer.GIVE_ALL_MEMBER));
-                    send(giveAllMember);
-
-                    byte[] sendNameToAll =
-                            Packet.serialize(ClientToServer.getId(ClientToServer.SEND_NAME_TO_ALL));
-                    send(sendNameToAll);
+                    send(Packet.serialize(ClientToServer.GIVE_ALL_MEMBER));
+                    send(Packet.serialize(ClientToServer.SEND_NAME_TO_ALL));
 
                     messengerClientGUI.initialisiereNachAnmeldung();
                 }
@@ -133,28 +127,22 @@ public class MessengerClient extends Client {
 
     public void registrieren(String pName, String pPasswort) {
         PacketRegister register = new PacketRegister(pName, pPasswort);
-        byte[] registerData =
-                Packet.serialize(ClientToServer.getId(ClientToServer.REGISTER), register);
-        send(registerData);
+        send(Packet.serialize(register));
     }
 
     public void anmelden(String pName, String pPasswort) {
         PacketLogin login = new PacketLogin(pName, pPasswort);
-        byte[] loginData = Packet.serialize(ClientToServer.getId(ClientToServer.LOGIN), login);
-        send(loginData);
+        send(Packet.serialize(login));
     }
 
     public void abmelden() {
-        byte[] logoutData = Packet.serialize(ClientToServer.getId(ClientToServer.LOGOUT));
-        send(logoutData);
+        send(Packet.serialize(ClientToServer.LOGOUT));
     }
 
     public void nachrichtSenden(List<String> _receivers, String _message) {
         if (!_message.equals("")) {
             PacketMessage message = new PacketMessage(_receivers.toArray(new String[0]), _message);
-            byte[] messageData =
-                    Packet.serialize(ClientToServer.getId(ClientToServer.MESSAGE), message);
-            send(messageData);
+            send(Packet.serialize(message));
 
             messengerClientGUI.ergaenzeNachrichten(
                     "Du schreibst an " + String.join(", ", _receivers) + "\n" + _message);

@@ -10,4 +10,8 @@ public class PacketRegister extends Packet {
         this.username = _username;
         this.password = _password;
     }
+
+    public int getPacketId() {
+        return ClientToServer.getId(ClientToServer.REGISTER);
+    }
 }

@@ -1,5 +1,8 @@
 package net;
 
+import net.C2S.*;
+import net.S2C.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,33 +17,23 @@ import java.util.Arrays;
 public abstract class Packet implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Packet.class);
 
-    public static byte[] serialize(int _packetId) {
-        return serialize(_packetId, null);
-    }
-
-    public static <T extends Packet> byte[] serialize(int _packetId, T _obj) {
+    public static <T extends Packet> byte[] serialize(T _obj) {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream out = null;
             try {
-                if (_obj != null) {
-                    out = new ObjectOutputStream(bos);
-                    out.writeObject(_obj);
-                    out.flush();
-                    out.close();
+                out = new ObjectOutputStream(bos);
+                out.writeObject(_obj);
+                out.flush();
+                out.close();
 
-                    byte[] data = bos.toByteArray();
+                byte[] data = bos.toByteArray();
 
-                    ByteBuffer buffer = ByteBuffer.allocate(4 + data.length);
-                    buffer.putInt(_packetId);
-                    buffer.put(data);
+                ByteBuffer buffer = ByteBuffer.allocate(4 + data.length);
+                buffer.putInt(_obj.getPacketId());
+                buffer.put(data);
 
-                    return buffer.array();
-                } else {
-                    ByteBuffer buffer = ByteBuffer.allocate(4);
-                    buffer.putInt(_packetId);
-                    return buffer.array();
-                }
+                return buffer.array();
             } finally {
                 bos.close();
             }
@@ -49,6 +42,32 @@ public abstract class Packet implements Serializable {
         }
 
         return null;
+    }
+
+    public static byte[] serialize(int _packetId) {
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream out = null;
+            try {
+                ByteBuffer buffer = ByteBuffer.allocate(4);
+                buffer.putInt(_packetId);
+                return buffer.array();
+            } finally {
+                bos.close();
+            }
+        } catch (Exception e) {
+            logger.error(e.toString());
+        }
+
+        return null;
+    }
+
+    public static byte[] serialize(ClientToServer _packetId) {
+        return serialize(ClientToServer.getId(_packetId));
+    }
+
+    public static byte[] serialize(ServerToClient _packetId) {
+        return serialize(ServerToClient.getId(_packetId));
     }
 
     public static <T extends Packet> T deserialize(byte[] _data) {
@@ -72,4 +91,10 @@ public abstract class Packet implements Serializable {
 
         return null;
     }
+
+    public static <T extends Packet> T deserialize(ByteBuffer _buffer) {
+        return deserialize(_buffer.array());
+    }
+
+    public abstract int getPacketId();
 }

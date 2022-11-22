@@ -8,4 +8,8 @@ public class PacketError extends Packet {
     public PacketError(String _message) {
         this.message = _message;
     }
+
+    public int getPacketId() {
+        return ServerToClient.getId(ServerToClient.ERROR);
+    }
 }

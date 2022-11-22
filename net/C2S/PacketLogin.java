@@ -10,4 +10,8 @@ public class PacketLogin extends Packet {
         this.username = _username;
         this.password = _password;
     }
+
+    public int getPacketId() {
+        return ClientToServer.getId(ClientToServer.LOGIN);
+    }
 }

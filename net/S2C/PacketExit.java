@@ -8,4 +8,8 @@ public class PacketExit extends Packet {
     public PacketExit(String _username) {
         this.username = _username;
     }
+
+    public int getPacketId() {
+        return ServerToClient.getId(ServerToClient.EXIT);
+    }
 }
