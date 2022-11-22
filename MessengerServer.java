@@ -27,7 +27,8 @@ import javax.swing.*;
 public class MessengerServer extends Server {
     private static final Logger logger = LoggerFactory.getLogger(MessengerServer.class);
 
-    private List<Teilnehmer> members;
+    // TODO: Convert this to a hashmap of client ids and member data
+    private List<Member> members;
     private final UserRepository userRepository;
 
     public MessengerServer() {
@@ -60,7 +61,7 @@ public class MessengerServer extends Server {
         ClientToServer msgId = ClientToServer.fromId(_buffer.getInt());
         logger.info("Server:" + msgId);
 
-        if (!istTeilnehmerAngemeldet(_clientIp, _clientPort)) {
+        if (!isClientLoggedIn(_clientIp, _clientPort)) {
             switch (msgId) {
                 case LOGIN -> {
                     PacketLogin login = Packet.deserialize(_buffer.array());
@@ -77,12 +78,12 @@ public class MessengerServer extends Server {
                             PacketError error = new PacketError("Falsches Passwort");
                             send(_clientIp, _clientPort, Packet.serialize(error));
                         } else {
-                            if (istNameVergeben(name)) {
+                            if (isNameUsed(name)) {
                                 PacketError error =
                                         new PacketError("Du bist bereits woanders eingeloggt.");
                                 send(_clientIp, _clientPort, Packet.serialize(error));
                             } else {
-                                meldeTeilnehmerAn(_clientIp, _clientPort, name);
+                                loginMember(_clientIp, _clientPort, name);
                                 PacketLoginOk loginOk = new PacketLoginOk(name);
                                 send(_clientIp, _clientPort, Packet.serialize(loginOk));
                             }
@@ -106,14 +107,14 @@ public class MessengerServer extends Server {
                     }
                 }
                 default -> {
-                    PacketError error = new PacketError("Sie sind nicht angemeldet!");
+                    PacketError error = new PacketError("Sie sind nicht loggedIn!");
                     send(_clientIp, _clientPort, Packet.serialize(error));
                 }
             }
         } else {
             switch (msgId) {
                 case LOGIN -> {
-                    PacketError error = new PacketError("Sie sind bereits angemeldet!");
+                    PacketError error = new PacketError("Sie sind bereits loggedIn!");
                     send(_clientIp, _clientPort, Packet.serialize(error));
                 }
                 case GIVE_ALL_MEMBER -> {
@@ -129,7 +130,7 @@ public class MessengerServer extends Server {
                 case LOGOUT -> {
                     PacketExit exit = new PacketExit(memberFromIpAndPort(_clientIp, _clientPort));
                     sendToAll(Packet.serialize(exit));
-                    meldeTeilnehmerAb(_clientIp, _clientPort);
+                    logoutMember(_clientIp, _clientPort);
                     closeConnection(_clientIp, _clientPort);
                 }
                 case MESSAGE -> {
@@ -139,8 +140,8 @@ public class MessengerServer extends Server {
                     String content = message.message;
 
                     for (String s : receivers) {
-                        String receiverIp = findeIPAdresseZuTeilnehmer(s);
-                        int reciverPort = findePortZuTeilnehmer(s);
+                        String receiverIp = findIpFromMember(s);
+                        int reciverPort = findPortFromMember(s);
                         String senderName = memberFromIpAndPort(_clientIp, _clientPort);
 
                         PacketText text = new PacketText(senderName, content);
@@ -158,65 +159,65 @@ public class MessengerServer extends Server {
         }
     }
 
-    private void meldeTeilnehmerAn(String _clientIp, int _clientPort, String pName) {
-        Teilnehmer neuerTeilnehmer = new Teilnehmer(_clientIp, _clientPort, pName);
-        neuerTeilnehmer.setzeAngemeldet(true);
-        members.append(neuerTeilnehmer);
+    private void loginMember(String _clientIp, int _clientPort, String pName) {
+        Member newMember = new Member(_clientIp, _clientPort, pName);
+        newMember.setLoggedIn(true);
+        members.append(newMember);
     }
 
-    private void meldeTeilnehmerAb(String _clientIp, int _clientPort) {
-        boolean gefunden = false;
+    private void logoutMember(String _clientIp, int _clientPort) {
+        boolean found = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibIPAdresse().equals(_clientIp)
-                    && members.getContent().gibPort() == _clientPort) {
-                members.getContent().setzeAngemeldet(false);
-                members.getContent().setzeName(null);
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                members.getContent().setLoggedIn(false);
+                members.getContent().setName(null);
                 members.remove();
-                gefunden = true;
+                found = true;
             } else {
                 members.next();
             }
         }
     }
 
-    private boolean istTeilnehmerAngemeldet(String _clientIp, int _clientPort) {
-        boolean gefunden = false;
-        boolean angemeldet = false;
+    private boolean isClientLoggedIn(String _clientIp, int _clientPort) {
+        boolean found = false;
+        boolean loggedIn = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibIPAdresse().equals(_clientIp)
-                    && members.getContent().gibPort() == _clientPort) {
-                angemeldet = members.getContent().istAngemeldet();
-                gefunden = true;
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                loggedIn = members.getContent().isLoggedIn();
+                found = true;
             } else {
                 members.next();
             }
         }
-        return angemeldet;
+        return loggedIn;
     }
 
-    private boolean istNameVergeben(String pName) {
-        boolean gefunden = false;
+    private boolean isNameUsed(String pName) {
+        boolean found = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibName().equals(pName)) {
-                gefunden = true;
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                found = true;
             } else {
                 members.next();
             }
         }
-        return gefunden;
+        return found;
     }
 
-    private String findeIPAdresseZuTeilnehmer(String pName) {
+    private String findIpFromMember(String pName) {
         String ipAdresse = null;
-        boolean gefunden = false;
+        boolean found = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibName().equals(pName)) {
-                ipAdresse = members.getContent().gibIPAdresse();
-                gefunden = true;
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                ipAdresse = members.getContent().getIp();
+                found = true;
             } else {
                 members.next();
             }
@@ -224,14 +225,14 @@ public class MessengerServer extends Server {
         return ipAdresse;
     }
 
-    private int findePortZuTeilnehmer(String pName) {
+    private int findPortFromMember(String pName) {
         int port = -1;
-        boolean gefunden = false;
+        boolean found = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibName().equals(pName)) {
-                port = members.getContent().gibPort();
-                gefunden = true;
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getName().equals(pName)) {
+                port = members.getContent().getPort();
+                found = true;
             } else {
                 members.next();
             }
@@ -240,19 +241,19 @@ public class MessengerServer extends Server {
     }
 
     private String memberFromIpAndPort(String _clientIp, int _clientPort) {
-        String gefundenerTeilnehmername = null;
-        boolean gefunden = false;
+        String foundMember = null;
+        boolean found = false;
         members.toFirst();
-        while (members.hasAccess() && !gefunden) {
-            if (members.getContent().gibIPAdresse().equals(_clientIp)
-                    && members.getContent().gibPort() == _clientPort) {
-                gefundenerTeilnehmername = members.getContent().gibName();
-                gefunden = true;
+        while (members.hasAccess() && !found) {
+            if (members.getContent().getIp().equals(_clientIp)
+                    && members.getContent().getPort() == _clientPort) {
+                foundMember = members.getContent().getName();
+                found = true;
             } else {
                 members.next();
             }
         }
-        return gefundenerTeilnehmername;
+        return foundMember;
     }
 
     private ArrayList<String> getAllMember() {
@@ -260,7 +261,7 @@ public class MessengerServer extends Server {
 
         members.toFirst();
         while (members.hasAccess()) {
-            allMembers.add(members.getContent().gibName());
+            allMembers.add(members.getContent().getName());
             members.next();
         }
         return allMembers;

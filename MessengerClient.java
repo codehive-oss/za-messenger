@@ -21,17 +21,17 @@ import javax.swing.*;
 public class MessengerClient extends Client {
     private static final Logger logger = LoggerFactory.getLogger(MessengerClient.class);
 
-    // TODO: remove this circular dependency, separate UI from logic
+    // TODO: remove this circular dependency, separate UI from logic, maybe using the observer pattern?
     private final MessengerClientGUI messengerClientGUI;
-    private String eigenerName;
-    private boolean angemeldet;
+    private String myName;
+    private boolean isLoggedIn;
 
     public MessengerClient(String pServerIP, int pServerPort, MessengerClientGUI pGUI) {
         super(pServerIP, pServerPort);
 
         messengerClientGUI = pGUI;
-        eigenerName = null;
-        angemeldet = false;
+        myName = null;
+        isLoggedIn = false;
 
         if (!isConnected()) {
             JOptionPane.showMessageDialog(
@@ -46,7 +46,7 @@ public class MessengerClient extends Client {
         ServerToClient msgId = ServerToClient.fromId(_buffer.getInt());
         logger.info("Client:" + msgId);
 
-        if (!angemeldet) {
+        if (!isLoggedIn) {
             switch (msgId) {
                 case WELCOME -> {
                     PacketWelcome welcome = Packet.deserialize(_buffer);
@@ -55,8 +55,8 @@ public class MessengerClient extends Client {
 
                 case LOGIN_OK -> {
                     PacketLoginOk loginOk = Packet.deserialize(_buffer);
-                    eigenerName = loginOk.username;
-                    angemeldet = true;
+                    myName = loginOk.username;
+                    isLoggedIn = true;
 
                     send(Packet.serialize(ClientToServer.GIVE_ALL_MEMBER));
                     send(Packet.serialize(ClientToServer.SEND_NAME_TO_ALL));
@@ -79,14 +79,14 @@ public class MessengerClient extends Client {
 
                 case ACCESS -> {
                     PacketAccess access = Packet.deserialize(_buffer.array());
-                    if (!access.username.equals(eigenerName)) {
+                    if (!access.username.equals(myName)) {
                         messengerClientGUI.ergaenzeTeilnehmerListe(access.username);
                     }
                 }
 
                 case EXIT -> {
                     PacketExit exit = Packet.deserialize(_buffer.array());
-                    if (!exit.username.equals(eigenerName)) {
+                    if (!exit.username.equals(myName)) {
                         messengerClientGUI.loescheNameAusTeilnehmerListe(exit.username);
                     } else {
                         messengerClientGUI.leereNachLogout();
@@ -96,15 +96,15 @@ public class MessengerClient extends Client {
                 case ALL_MEMBERS -> {
                     PacketAllMembers allMembers = Packet.deserialize(_buffer.array());
                     for (int i = 0; i < allMembers.usernames.length; i++) {
-                        if (!allMembers.usernames[i].equals(eigenerName)) {
+                        if (!allMembers.usernames[i].equals(myName)) {
                             messengerClientGUI.ergaenzeTeilnehmerListe(allMembers.usernames[i]);
                         }
                     }
                 }
 
                 case BYE -> {
-                    eigenerName = null;
-                    angemeldet = false;
+                    myName = null;
+                    isLoggedIn = false;
                     JOptionPane.showMessageDialog(
                             null,
                             "Verbindung durch den Messenger-Server geschlossen.\n"
