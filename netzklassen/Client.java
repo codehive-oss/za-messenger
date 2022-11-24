@@ -1,10 +1,11 @@
 package netzklassen;
 
+import net.*;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 
 /**
  * Materialien zu den zentralen NRW-Abiturpruefungen im Fach Informatik ab 2018
@@ -102,8 +103,7 @@ public abstract class Client {
             byte[] message;
             while (active) {
                 message = socketWrapper.receive();
-                ByteBuffer buffer = ByteBuffer.wrap(message);
-                processMessage(buffer);
+                processMessage(new FriendlyBuffer(message));
             }
         }
 
@@ -127,8 +127,8 @@ public abstract class Client {
         return (messageHandler.active);
     }
 
-    public void send(ByteBuffer pMessage) {
-        send(pMessage.array());
+    public void send(FriendlyBuffer _buffer) {
+        send(_buffer.toByteArray());
     }
 
     public void send(byte[] pMessage) {
@@ -139,5 +139,5 @@ public abstract class Client {
         messageHandler.close();
     }
 
-    public abstract void processMessage(ByteBuffer pMessage);
+    public abstract void processMessage(FriendlyBuffer _message);
 }
