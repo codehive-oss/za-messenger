@@ -13,7 +13,6 @@ import netzklassen.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 
 import javax.swing.*;
@@ -21,7 +20,8 @@ import javax.swing.*;
 public class MessengerClient extends Client {
     private static final Logger logger = LoggerFactory.getLogger(MessengerClient.class);
 
-    // TODO: remove this circular dependency, separate UI from logic, maybe using the observer pattern?
+    // TODO: remove this circular dependency, separate UI from logic, maybe using the observer
+    // pattern?
     private final MessengerClientGUI messengerClientGUI;
     private String myName;
     private boolean isLoggedIn;
@@ -42,50 +42,50 @@ public class MessengerClient extends Client {
     }
 
     @Override
-    public void processMessage(ByteBuffer _buffer) {
-        ServerToClient msgId = ServerToClient.fromId(_buffer.getInt());
+    public void processMessage(FriendlyBuffer buffer) {
+        ServerToClient msgId = ServerToClient.fromId(buffer.getInt());
         logger.info("Client:" + msgId);
 
         if (!isLoggedIn) {
             switch (msgId) {
                 case WELCOME -> {
-                    PacketWelcome welcome = Packet.deserialize(_buffer);
+                    PacketWelcome welcome = buffer.getPacketData(PacketWelcome.class);
                     JOptionPane.showMessageDialog(null, welcome.message);
                 }
 
                 case LOGIN_OK -> {
-                    PacketLoginOk loginOk = Packet.deserialize(_buffer);
+                    PacketLoginOk loginOk = buffer.getPacketData(PacketLoginOk.class);
                     myName = loginOk.username;
                     isLoggedIn = true;
 
-                    send(Packet.serialize(ClientToServer.GIVE_ALL_MEMBER));
-                    send(Packet.serialize(ClientToServer.SEND_NAME_TO_ALL));
+                    send(new FriendlyBuffer().putInt(ClientToServer.GIVE_ALL_MEMBER.getId()));
+                    send(new FriendlyBuffer().putInt(ClientToServer.SEND_NAME_TO_ALL.getId()));
 
                     messengerClientGUI.initialisiereNachAnmeldung();
                 }
 
                 case ERROR -> {
-                    PacketError error = Packet.deserialize(_buffer.array());
+                    PacketError error = buffer.getPacketData(PacketError.class);
                     JOptionPane.showMessageDialog(null, error.message);
                 }
             }
         } else {
             switch (msgId) {
                 case TEXT -> {
-                    PacketText text = Packet.deserialize(_buffer.array());
+                    PacketText text = buffer.getPacketData(PacketText.class);
                     messengerClientGUI.ergaenzeNachrichten(
                             text.author + " schreibt:\n" + text.message);
                 }
 
                 case ACCESS -> {
-                    PacketAccess access = Packet.deserialize(_buffer.array());
+                    PacketAccess access = buffer.getPacketData(PacketAccess.class);
                     if (!access.username.equals(myName)) {
                         messengerClientGUI.ergaenzeTeilnehmerListe(access.username);
                     }
                 }
 
                 case EXIT -> {
-                    PacketExit exit = Packet.deserialize(_buffer.array());
+                    PacketExit exit = buffer.getPacketData(PacketExit.class);
                     if (!exit.username.equals(myName)) {
                         messengerClientGUI.loescheNameAusTeilnehmerListe(exit.username);
                     } else {
@@ -94,7 +94,7 @@ public class MessengerClient extends Client {
                 }
 
                 case ALL_MEMBERS -> {
-                    PacketAllMembers allMembers = Packet.deserialize(_buffer.array());
+                    PacketAllMembers allMembers = buffer.getPacketData(PacketAllMembers.class);
                     for (int i = 0; i < allMembers.usernames.length; i++) {
                         if (!allMembers.usernames[i].equals(myName)) {
                             messengerClientGUI.ergaenzeTeilnehmerListe(allMembers.usernames[i]);
@@ -113,7 +113,7 @@ public class MessengerClient extends Client {
                 }
 
                 case ERROR -> {
-                    PacketError error = new PacketError(new String(_buffer.array()));
+                    PacketError error = buffer.getPacketData(PacketError.class);
                     JOptionPane.showMessageDialog(null, error.message);
                 }
 
@@ -127,22 +127,22 @@ public class MessengerClient extends Client {
 
     public void registrieren(String pName, String pPasswort) {
         PacketRegister register = new PacketRegister(pName, pPasswort);
-        send(Packet.serialize(register));
+        send(new FriendlyBuffer().putInt(register.getPacketId()).putPacketData(register));
     }
 
     public void anmelden(String pName, String pPasswort) {
         PacketLogin login = new PacketLogin(pName, pPasswort);
-        send(Packet.serialize(login));
+        send(new FriendlyBuffer().putInt(login.getPacketId()).putPacketData(login));
     }
 
     public void abmelden() {
-        send(Packet.serialize(ClientToServer.LOGOUT));
+        send(new FriendlyBuffer().putInt(ClientToServer.LOGOUT.getId()));
     }
 
     public void nachrichtSenden(List<String> _receivers, String _message) {
         if (!_message.equals("")) {
             PacketMessage message = new PacketMessage(_receivers.toArray(new String[0]), _message);
-            send(Packet.serialize(message));
+            send(new FriendlyBuffer().putInt(message.getPacketId()).putPacketData(message));
 
             messengerClientGUI.ergaenzeNachrichten(
                     "Du schreibst an " + String.join(", ", _receivers) + "\n" + _message);

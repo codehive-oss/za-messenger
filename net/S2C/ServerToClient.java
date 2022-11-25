@@ -20,4 +20,8 @@ public enum ServerToClient {
     public static int getId(ServerToClient msg) {
         return msg.value;
     }
+
+    public int getId() {
+        return getId(this);
+    }
 }

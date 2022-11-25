@@ -1,33 +1,28 @@
 package netzklassen;
 
+import net.*;
+
 import java.io.*;
+import java.net.*;
+
 /**
- * <p>
  * Materialien zu den zentralen NRW-Abiturpruefungen im Fach Informatik ab 2018
- * </p>
- * <p>
- * Klasse Server
- * </p>
- * <p>
- * Objekte von Unterklassen der abstrakten Klasse Server ermoeglichen das
- * Anbieten von Serverdiensten, so dass Clients Verbindungen zum Server mittels
- * TCP/IP-Protokoll aufbauen koennen. Zur Vereinfachung finden
- * Nachrichtenversand und -empfang zeilenweise statt, d. h., beim Senden einer
- * Zeichenkette wird ein Zeilentrenner ergaenzt und beim Empfang wird dieser
- * entfernt. Verbindungsannahme, Nachrichtenempfang und Verbindungsende
- * geschehen nebenlaeufig. Auf diese Ereignisse muss durch Ueberschreiben der
- * entsprechenden Ereignisbehandlungsmethoden reagiert werden. Es findet nur
- * eine rudimentaere Fehlerbehandlung statt, so dass z.B. Verbindungsabbrueche
- * nicht zu einem Programmabbruch fuehren. Einmal unterbrochene oder getrennte
- * Verbindungen koennen nicht reaktiviert werden.
- * </p>
+ *
+ * <p>Klasse Server
+ *
+ * <p>Objekte von Unterklassen der abstrakten Klasse Server ermoeglichen das Anbieten von
+ * Serverdiensten, so dass Clients Verbindungen zum Server mittels TCP/IP-Protokoll aufbauen
+ * koennen. Zur Vereinfachung finden Nachrichtenversand und -empfang zeilenweise statt, d. h., beim
+ * Senden einer Zeichenkette wird ein Zeilentrenner ergaenzt und beim Empfang wird dieser entfernt.
+ * Verbindungsannahme, Nachrichtenempfang und Verbindungsende geschehen nebenlaeufig. Auf diese
+ * Ereignisse muss durch Ueberschreiben der entsprechenden Ereignisbehandlungsmethoden reagiert
+ * werden. Es findet nur eine rudimentaere Fehlerbehandlung statt, so dass z.B. Verbindungsabbrueche
+ * nicht zu einem Programmabbruch fuehren. Einmal unterbrochene oder getrennte Verbindungen koennen
+ * nicht reaktiviert werden.
  *
  * @author Qualitaets- und UnterstuetzungsAgentur - Landesinstitut fuer Schule
  * @version 30.08.2016
  */
-import java.net.*;
-import java.nio.ByteBuffer;
-
 public abstract class Server {
     private NewConnectionHandler connectionHandler;
     private List<ClientMessageHandler> messageHandlers;
@@ -55,8 +50,8 @@ public abstract class Server {
                     // Eingehende Nachrichten vom neu verbundenen Client werden
                     // in einem eigenen Thread empfangen:
                     addNewClientMessageHandler(clientSocket);
-                    processNewConnection(clientSocket.getInetAddress().getHostAddress(),
-                            clientSocket.getPort());
+                    processNewConnection(
+                            clientSocket.getInetAddress().getHostAddress(), clientSocket.getPort());
                 } catch (IOException e) {
                     /*
                      * Kann keine Verbindung zum anfragenden Client aufgebaut werden,
@@ -131,18 +126,14 @@ public abstract class Server {
             }
 
             public String getClientIP() {
-                if (clientSocket != null)
-                    return (clientSocket.getInetAddress().getHostAddress());
-                else
-                    return (null); // Gemaess Java-API Rueckgabe bei nicht-verbundenen Sockets
+                if (clientSocket != null) return (clientSocket.getInetAddress().getHostAddress());
+                else return (null); // Gemaess Java-API Rueckgabe bei nicht-verbundenen Sockets
             }
 
             public int getClientPort() {
-                if (clientSocket != null)
-                    return (clientSocket.getPort());
-                else
-                    return (0); // Gemaess Java-API Rueckgabe bei nicht-verbundenen
-                                // Sockets
+                if (clientSocket != null) return (clientSocket.getPort());
+                else return (0); // Gemaess Java-API Rueckgabe bei nicht-verbundenen
+                // Sockets
             }
 
             public void close() {
@@ -175,25 +166,26 @@ public abstract class Server {
                 message = socketWrapper.receive();
                 if (message != null)
                     // TODO: Work with Client IDs instead of using IP and Ports
-                    processMessage(socketWrapper.getClientIP(),
+                    processMessage(
+                            socketWrapper.getClientIP(),
                             socketWrapper.getClientPort(),
-                            ByteBuffer.wrap(message));
+                            new FriendlyBuffer(message));
                 else {
-                    ClientMessageHandler aMessageHandler = findClientMessageHandler(
-                            socketWrapper.getClientIP(), socketWrapper.getClientPort());
+                    ClientMessageHandler aMessageHandler =
+                            findClientMessageHandler(
+                                    socketWrapper.getClientIP(), socketWrapper.getClientPort());
                     if (aMessageHandler != null) {
                         aMessageHandler.close();
                         removeClientMessageHandler(aMessageHandler);
-                        processClosingConnection(socketWrapper.getClientIP(),
-                                socketWrapper.getClientPort());
+                        processClosingConnection(
+                                socketWrapper.getClientIP(), socketWrapper.getClientPort());
                     }
                 }
             }
         }
 
         public void send(byte[] pMessage) {
-            if (active)
-                socketWrapper.send(pMessage);
+            if (active) socketWrapper.send(pMessage);
         }
 
         public void close() {
@@ -204,11 +196,11 @@ public abstract class Server {
         }
 
         public String getClientIP() {
-            return (socketWrapper.getClientIP());
+            return socketWrapper.getClientIP();
         }
 
         public int getClientPort() {
-            return (socketWrapper.getClientPort());
+            return socketWrapper.getClientPort();
         }
     }
 
@@ -218,25 +210,23 @@ public abstract class Server {
     }
 
     public boolean isOpen() {
-        return (connectionHandler.active);
+        return connectionHandler.active;
     }
 
     public boolean isConnectedTo(String pClientIP, int pClientPort) {
         ClientMessageHandler aMessageHandler = findClientMessageHandler(pClientIP, pClientPort);
-        if (aMessageHandler != null)
-            return (aMessageHandler.active);
-        else
-            return (false);
+        if (aMessageHandler != null) return aMessageHandler.active;
+        else return false;
     }
 
     public void send(String pClientIP, int pClientPort, byte[] pMessage) {
-        ClientMessageHandler aMessageHandler = this.findClientMessageHandler(pClientIP, pClientPort);
-        if (aMessageHandler != null)
-            aMessageHandler.send(pMessage);
+        ClientMessageHandler aMessageHandler =
+                this.findClientMessageHandler(pClientIP, pClientPort);
+        if (aMessageHandler != null) aMessageHandler.send(pMessage);
     }
 
-    public void send(String _clientIp, int _clientPort, ByteBuffer _buffer) {
-        send(_clientIp, _clientPort, _buffer.array());
+    public void send(String _clientIp, int _clientPort, FriendlyBuffer _buffer) {
+        send(_clientIp, _clientPort, _buffer.toByteArray());
     }
 
     public void sendToAll(byte[] pMessage) {
@@ -249,8 +239,8 @@ public abstract class Server {
         }
     }
 
-    public void sendToAll(ByteBuffer _buffer) {
-        sendToAll(_buffer.array());
+    public void sendToAll(FriendlyBuffer _buffer) {
+        sendToAll(_buffer.toByteArray());
     }
 
     public void closeConnection(String pClientIP, int pClientPort) {
@@ -270,8 +260,8 @@ public abstract class Server {
             messageHandlers.toFirst();
             while (messageHandlers.hasAccess()) {
                 aMessageHandler = messageHandlers.getContent();
-                processClosingConnection(aMessageHandler.getClientIP(),
-                        aMessageHandler.getClientPort());
+                processClosingConnection(
+                        aMessageHandler.getClientIP(), aMessageHandler.getClientPort());
                 aMessageHandler.close();
                 messageHandlers.remove();
             }
@@ -280,11 +270,9 @@ public abstract class Server {
 
     public abstract void processNewConnection(String pClientIP, int pClientPort);
 
-    public abstract void processMessage(String pClientIP, int pClientPort,
-            ByteBuffer pMessage);
+    public abstract void processMessage(String pClientIP, int pClientPort, FriendlyBuffer pMessage);
 
-    public abstract void processClosingConnection(String pClientIP,
-            int pClientPort);
+    public abstract void processClosingConnection(String pClientIP, int pClientPort);
 
     private void addNewClientMessageHandler(Socket pClientSocket) {
         synchronized (messageHandlers) {
@@ -299,23 +287,20 @@ public abstract class Server {
                 if (pClientMessageHandler == messageHandlers.getContent()) {
                     messageHandlers.remove();
                     return;
-                } else
-                    messageHandlers.next();
+                } else messageHandlers.next();
             }
         }
     }
 
-    private ClientMessageHandler findClientMessageHandler(String pClientIP,
-            int pClientPort) {
+    private ClientMessageHandler findClientMessageHandler(String pClientIP, int pClientPort) {
         synchronized (messageHandlers) {
             ClientMessageHandler aMessageHandler;
             messageHandlers.toFirst();
 
             while (messageHandlers.hasAccess()) {
                 aMessageHandler = messageHandlers.getContent();
-                if (aMessageHandler.getClientIP().equals(pClientIP) &&
-                        aMessageHandler.getClientPort() == pClientPort)
-                    return (aMessageHandler);
+                if (aMessageHandler.getClientIP().equals(pClientIP)
+                        && aMessageHandler.getClientPort() == pClientPort) return (aMessageHandler);
                 messageHandlers.next();
             }
             return null;
