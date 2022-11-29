@@ -122,7 +122,7 @@ public class MessengerClientGUI extends JFrame {
                         try {
                             BufferedImage image = ImageIO.read(fileChooser.getSelectedFile());
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            ImageIO.write(image, "jpg", baos);
+                            ImageIO.write(image, "png", baos);
                             byte[] imageInByte = baos.toByteArray();
                             messengerClient.bildSenden(
                                     lstTeilnehmer.getSelectedValuesList(), imageInByte);
@@ -240,13 +240,13 @@ public class MessengerClientGUI extends JFrame {
         try {
             Document docs = taNachrichten.getDocument();
             docs.insertString(docs.getLength(), pNachricht + "\n\n", null);
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
     }
 
     public void ergaenzeBild(byte[] bild) {
-        ImageIcon icon = new ImageIcon(bild);
-        taNachrichten.insertIcon(icon);
+        ImageIcon scaled = new ImageIcon(new ImageIcon(bild).getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH));
+        taNachrichten.insertIcon(scaled);
     }
 
     public void ergaenzeTeilnehmerListe(String pName) {
