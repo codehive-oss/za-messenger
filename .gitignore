@@ -3,5 +3,7 @@
 *.jfm
 *.iml
 .idea
-dev.db
+messenger-server/dev.db
 out
+build
+.gradle
