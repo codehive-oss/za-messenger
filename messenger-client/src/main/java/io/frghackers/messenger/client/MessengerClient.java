@@ -28,8 +28,9 @@ public class MessengerClient extends Client {
         messengerClientGUI = pGUI;
         myName = null;
         isLoggedIn = false;
-
-        throw new RuntimeException("Fehler beim Herstellen der Verbindung! Das Programm wird jetzt beendet.");
+        if(!isConnected()) {
+            throw new RuntimeException("Fehler beim Herstellen der Verbindung! Das Programm wird jetzt beendet.");
+        }
     }
 
 
