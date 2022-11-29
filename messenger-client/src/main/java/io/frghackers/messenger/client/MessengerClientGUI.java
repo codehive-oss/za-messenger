@@ -241,8 +241,14 @@ public class MessengerClientGUI extends JFrame {
     }
 
     public void ergaenzeBild(byte[] bild) {
-        ImageIcon scaled = new ImageIcon(new ImageIcon(bild).getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH));
-        taNachrichten.insertIcon(scaled);
+        try {
+            Document docs = taNachrichten.getDocument();
+            ImageIcon scaled = new ImageIcon(new ImageIcon(bild).getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH));
+            taNachrichten.setCaretPosition(docs.getLength());
+            taNachrichten.insertIcon(scaled);
+        } catch (Exception ignored) {
+        }
+
     }
 
     public void ergaenzeTeilnehmerListe(String pName) {
