@@ -4,3 +4,4 @@
 *.iml
 .idea
 dev.db
+out
