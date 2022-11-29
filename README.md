@@ -9,7 +9,8 @@ Eine Erweiterung des messengers, den Schüler des Informatikunterrichts in NRW b
 - [x] Passwort Hashing
 - [x] Broadcast Nachrichten
 - [x] De(Serialisierung)
-- [ ] Bilder und Videos
+- [x] Bilder
+- [ ] Videos
 - [ ] Ende zu Ende Verschlüsselung
 
 Contributions sind erwünscht 😊
