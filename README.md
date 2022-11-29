@@ -46,8 +46,8 @@ auf Windows:
 
 Optional können eine andere ip und ein anderer Port angegeben werden:
 \
-```./gradlew :messenger-server:run --args="192.168.0.58 12345"```
+```./gradlew :messenger-client:run --args="192.168.0.58 12345"```
 
 auf Windows:
 
-```gradlew :messenger-server:run --args="192.168.0.58 12345"```
+```gradlew :messenger-client:run --args="192.168.0.58 12345"```
