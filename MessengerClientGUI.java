@@ -4,25 +4,22 @@
  * @version 1.0
  * @author QUA-LiS NRW
  */
-
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serial;
-import java.util.Arrays;
+
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.DefaultCaret;
+import javax.swing.text.Document;
 
 public class MessengerClientGUI extends JFrame {
-    /**
-     *
-     */
-    @Serial
-    private static final long serialVersionUID = 2749433956491096074L;
+    /** */
+    @Serial private static final long serialVersionUID = 2749433956491096074L;
 
     private final JLabel lProgrammtitel = new JLabel();
     private final JList<String> lstTeilnehmer = new JList<>();
@@ -72,15 +69,16 @@ public class MessengerClientGUI extends JFrame {
         lstTeilnehmer.setModel(lstTeilnehmerModel);
         lstTeilnehmerScrollPane.setBounds(416, 112, 145, 297);
         lstTeilnehmer.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        lstTeilnehmer.addListSelectionListener(e -> {
-            if (lstTeilnehmer.getSelectedValuesList().isEmpty()) {
-                bSenden.setEnabled(false);
-                bImg.setEnabled(false);
-            } else {
-                bSenden.setEnabled(true);
-                bImg.setEnabled(true);
-            }
-        });
+        lstTeilnehmer.addListSelectionListener(
+                e -> {
+                    if (lstTeilnehmer.getSelectedValuesList().isEmpty()) {
+                        bSenden.setEnabled(false);
+                        bImg.setEnabled(false);
+                    } else {
+                        bSenden.setEnabled(true);
+                        bImg.setEnabled(true);
+                    }
+                });
         cp.add(lstTeilnehmerScrollPane);
 
         lTeilnehmer.setBounds(416, 83, 133, 20);
@@ -108,7 +106,8 @@ public class MessengerClientGUI extends JFrame {
         lNachricht.setText("Eigene Nachricht");
         cp.add(lNachricht);
 
-        FileNameExtensionFilter imageFilter = new FileNameExtensionFilter("Image files", ImageIO.getReaderFileSuffixes());
+        FileNameExtensionFilter imageFilter =
+                new FileNameExtensionFilter("Image files", ImageIO.getReaderFileSuffixes());
         fileChooser.setFileFilter(imageFilter);
         cp.add(fileChooser);
 
@@ -116,22 +115,24 @@ public class MessengerClientGUI extends JFrame {
         bImg.setText("IMG");
         bImg.setMargin(new Insets(2, 2, 2, 2));
         bImg.setEnabled(false);
-        bImg.addActionListener(e -> {
-            int res = fileChooser.showDialog(this, "Bild Wählen");
-            if (res == JFileChooser.APPROVE_OPTION) {
-                try {
-                    BufferedImage image = ImageIO.read(fileChooser.getSelectedFile());
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(image, "jpg", baos);
-                    byte[] imageInByte = baos.toByteArray();
-                    messengerClient.bildSenden(lstTeilnehmer.getSelectedValuesList(), imageInByte);
-                    JOptionPane.showMessageDialog(this, "Bild gesendet");
+        bImg.addActionListener(
+                e -> {
+                    int res = fileChooser.showDialog(this, "Bild Wählen");
+                    if (res == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            BufferedImage image = ImageIO.read(fileChooser.getSelectedFile());
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ImageIO.write(image, "jpg", baos);
+                            byte[] imageInByte = baos.toByteArray();
+                            messengerClient.bildSenden(
+                                    lstTeilnehmer.getSelectedValuesList(), imageInByte);
+                            JOptionPane.showMessageDialog(this, "Bild gesendet");
 
-                } catch (IOException | IllegalArgumentException ex) {
-                    JOptionPane.showMessageDialog(this, "FEHLER");
-                }
-            }
-        });
+                        } catch (IOException | IllegalArgumentException ex) {
+                            JOptionPane.showMessageDialog(this, "FEHLER");
+                        }
+                    }
+                });
         cp.add(bImg);
 
         bSenden.setBounds(341, 363, 65, 33);
@@ -201,7 +202,6 @@ public class MessengerClientGUI extends JFrame {
         bLogOut.addActionListener(this::bLogOut_ActionPerformed);
         cp.add(bLogOut);
 
-
         messengerClient = new MessengerClient(pServerIp, pPort, this);
 
         setVisible(true);
@@ -237,11 +237,16 @@ public class MessengerClientGUI extends JFrame {
     }
 
     public void ergaenzeNachrichten(String pNachricht) {
-        taNachrichten.setText(taNachrichten.getText() + pNachricht + "\n\n");
+        try {
+            Document docs = taNachrichten.getDocument();
+            docs.insertString(docs.getLength(), pNachricht + "\n\n", null);
+        } catch (Exception e) {
+        }
     }
 
     public void ergaenzeBild(byte[] bild) {
-        taNachrichten.insertIcon(new ImageIcon(bild));
+        ImageIcon icon = new ImageIcon(bild);
+        taNachrichten.insertIcon(icon);
     }
 
     public void ergaenzeTeilnehmerListe(String pName) {
