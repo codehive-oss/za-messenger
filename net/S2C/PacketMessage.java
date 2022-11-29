@@ -1,17 +1,19 @@
-package net.C2S;
+package net.S2C;
 
 import net.*;
 
 public abstract class PacketMessage extends Packet {
-    public String[] receivers;
+    public String author;
 
     public PacketMessage() {
         super();
     }
 
-    public PacketMessage(String[] receivers) {
-        this.receivers = receivers;
+    public PacketMessage(String _author) {
+        super();
+        this.author = _author;
     }
+
 
     public static class Text extends PacketMessage {
 
@@ -21,23 +23,24 @@ public abstract class PacketMessage extends Packet {
             super();
         }
 
-        public Text(String[] _receivers, String _message) {
-            super(_receivers);
+        public Text(String _author, String _message) {
+            super(_author);
             this.message = _message;
         }
 
         public void serialize(FriendlyBuffer _buffer) {
-            _buffer.putStringArray(receivers);
+            _buffer.putString(author);
             _buffer.putString(message);
         }
 
         public void deserialize(FriendlyBuffer _buffer) {
-            this.receivers = _buffer.getStringArray();
+            this.author = _buffer.getString();
             this.message = _buffer.getString();
         }
 
+        @Override
         public int getPacketId() {
-            return ClientToServer.getId(ClientToServer.MESSAGE_TEXT);
+            return ServerToClient.MESSAGE_TEXT.getId();
         }
     }
 
@@ -49,27 +52,26 @@ public abstract class PacketMessage extends Packet {
             super();
         }
 
-        public Image(String[] _receivers, byte[] _imageData) {
-            this.receivers = _receivers;
-            this.imageData = _imageData;
+        public Image(String _author, byte[] imageData) {
+            super(_author);
+            this.imageData = imageData;
         }
 
-        @Override
         public void serialize(FriendlyBuffer _buffer) {
-            _buffer.putStringArray(receivers);
+            _buffer.putString(author);
             _buffer.put(imageData);
         }
 
-        @Override
         public void deserialize(FriendlyBuffer _buffer) {
-            this. receivers = _buffer.getStringArray();
+            this.author = _buffer.getString();
             this.imageData = _buffer.get();
         }
 
         @Override
         public int getPacketId() {
-            return ClientToServer.getId(ClientToServer.MESSAGE_IMAGE);
+            return ServerToClient.MESSAGE_IMAGE.getId();
         }
+
     }
 
 }

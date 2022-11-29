@@ -5,7 +5,8 @@ public enum ServerToClient {
     LOGIN_OK,
     ACCESS,
     ALL_MEMBERS,
-    TEXT,
+    MESSAGE_TEXT,
+    MESSAGE_IMAGE,
     BYE,
     EXIT,
     ERROR;

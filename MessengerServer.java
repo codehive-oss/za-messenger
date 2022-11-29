@@ -1,21 +1,20 @@
 import db.Argon2;
 import db.User;
 import db.UserRepository;
-
-import net.*;
-import net.C2S.*;
+import net.C2S.ClientToServer;
+import net.C2S.PacketLogin;
+import net.C2S.PacketRegister;
+import net.FriendlyBuffer;
 import net.S2C.*;
-
 import netzklassen.List;
 import netzklassen.Server;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Optional;
-
 import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * Ein Messenger-Server
@@ -180,8 +179,8 @@ public class MessengerServer extends Server {
                     logoutMember(_clientIp, _clientPort);
                     closeConnection(_clientIp, _clientPort);
                 }
-                case MESSAGE -> {
-                    PacketMessage message = _buffer.getPacketData(PacketMessage.class);
+                case MESSAGE_TEXT -> {
+                    net.C2S.PacketMessage.Text message = _buffer.getPacketData(net.C2S.PacketMessage.Text.class);
 
                     String[] receivers = message.receivers;
                     String content = message.message;
@@ -191,13 +190,31 @@ public class MessengerServer extends Server {
                         int reciverPort = findPortFromMember(s);
                         String senderName = memberFromIpAndPort(_clientIp, _clientPort);
 
-                        PacketText text = new PacketText(senderName, content);
+                        PacketMessage.Text text = new PacketMessage.Text(senderName, content);
                         send(
                                 receiverIp,
                                 reciverPort,
                                 new FriendlyBuffer()
                                         .putInt(text.getPacketId())
                                         .putPacketData(text));
+                    }
+                }
+                case MESSAGE_IMAGE -> {
+                    net.C2S.PacketMessage.Image message = _buffer.getPacketData(net.C2S.PacketMessage.Image.class);
+
+                    String[] receivers = message.receivers;
+                    byte[] imageData = message.imageData;
+
+
+                    for (String receiver : receivers) {
+                        String receiverIp = findIpFromMember(receiver);
+                        int receiverPort = findPortFromMember(receiver);
+                        String senderName = memberFromIpAndPort(_clientIp, _clientPort);
+
+                        PacketMessage.Image msg = new PacketMessage.Image(senderName, imageData);
+                        send(receiverIp, receiverPort, new FriendlyBuffer()
+                                .putInt(msg.getPacketId())
+                                .putPacketData(msg));
                     }
                 }
             }

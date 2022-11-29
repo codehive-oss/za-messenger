@@ -5,7 +5,8 @@ public enum ClientToServer {
     REGISTER,
     GIVE_ALL_MEMBER,
     SEND_NAME_TO_ALL,
-    MESSAGE,
+    MESSAGE_TEXT,
+    MESSAGE_IMAGE,
     LOGOUT;
 
     public final int value = ordinal();

@@ -8,11 +8,13 @@ import net.*;
 import net.C2S.*;
 import net.S2C.*;
 
+import net.S2C.PacketMessage;
 import netzklassen.Client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.*;
@@ -71,10 +73,14 @@ public class MessengerClient extends Client {
             }
         } else {
             switch (msgId) {
-                case TEXT -> {
-                    PacketText text = buffer.getPacketData(PacketText.class);
+                case MESSAGE_TEXT -> {
+                    PacketMessage.Text text = buffer.getPacketData(PacketMessage.Text.class);
                     messengerClientGUI.ergaenzeNachrichten(
                             text.author + " schreibt:\n" + text.message);
+                }
+
+                case MESSAGE_IMAGE -> {
+                    PacketMessage.Image image = buffer.getPacketData(PacketMessage.Image.class);
                 }
 
                 case ACCESS -> {
@@ -141,11 +147,18 @@ public class MessengerClient extends Client {
 
     public void nachrichtSenden(List<String> _receivers, String _message) {
         if (!_message.equals("")) {
-            PacketMessage message = new PacketMessage(_receivers.toArray(new String[0]), _message);
+            net.C2S.PacketMessage.Text message = new net.C2S.PacketMessage.Text(_receivers.toArray(new String[0]), _message);
             send(new FriendlyBuffer().putInt(message.getPacketId()).putPacketData(message));
 
             messengerClientGUI.ergaenzeNachrichten(
                     "Du schreibst an " + String.join(", ", _receivers) + "\n" + _message);
+        }
+    }
+
+    public void bildSenden(List<String> _receivers, byte[] _imageData) {
+        if(_imageData.length!=0) {
+            net.C2S.PacketMessage.Image message = new net.C2S.PacketMessage.Image(_receivers.toArray(new String[0]), _imageData);
+            send(new FriendlyBuffer().putInt(message.getPacketId()).putPacketData(message));
         }
     }
 }
