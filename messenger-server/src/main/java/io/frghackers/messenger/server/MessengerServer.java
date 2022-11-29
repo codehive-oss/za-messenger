@@ -32,8 +32,7 @@ public class MessengerServer extends Server {
     public MessengerServer(int _port) {
         super(_port);
         if (!isOpen()) {
-            JOptionPane.showMessageDialog(null, "Fehler beim Starten des Servers auf Port 20017!");
-            System.exit(1);
+            throw new RuntimeException("Fehler beim Starten des Servers auf Port 20017!");
         } else {
             members = new List<>();
             logger.info("Server ist gestartet auf Port " + _port + ".");

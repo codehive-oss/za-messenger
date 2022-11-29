@@ -1,4 +1,5 @@
 package io.frghackers.messenger.client;
+
 import io.frghackers.messenger.api.net.C2S.ClientToServer;
 import io.frghackers.messenger.api.net.C2S.PacketLogin;
 import io.frghackers.messenger.api.net.C2S.PacketRegister;
@@ -6,13 +7,11 @@ import io.frghackers.messenger.api.net.C2S.PacketServerboundMessage;
 import io.frghackers.messenger.api.net.FriendlyBuffer;
 import io.frghackers.messenger.api.net.S2C.*;
 import io.frghackers.messenger.api.netzklassen.Client;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
 import javax.swing.*;
+import java.util.List;
 
 public class MessengerClient extends Client {
     private static final Logger logger = LoggerFactory.getLogger(MessengerClient.class);
@@ -30,13 +29,9 @@ public class MessengerClient extends Client {
         myName = null;
         isLoggedIn = false;
 
-        if (!isConnected()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Fehler beim Herstellen der Verbindung!\nDas Programm wird jetzt beendet.");
-            System.exit(1);
-        }
+        throw new RuntimeException("Fehler beim Herstellen der Verbindung! Das Programm wird jetzt beendet.");
     }
+
 
     @Override
     public void processMessage(FriendlyBuffer buffer) {
@@ -109,11 +104,8 @@ public class MessengerClient extends Client {
                 case BYE -> {
                     myName = null;
                     isLoggedIn = false;
-                    JOptionPane.showMessageDialog(
-                            null,
-                            "Verbindung durch den Messenger-Server geschlossen.\n"
-                                    + "Das Programm wird jetzt beendet.");
-                    System.exit(0);
+
+                    throw new RuntimeException("Verbindung durch den Messenger-Server geschlossen. Das Programm wird jetzt beendet.");
                 }
 
                 case ERROR -> {
