@@ -81,6 +81,9 @@ public class MessengerClient extends Client {
 
                 case MESSAGE_IMAGE -> {
                     PacketMessage.Image image = buffer.getPacketData(PacketMessage.Image.class);
+                    messengerClientGUI.ergaenzeNachrichten(image.author + " schickt ein Bild:\n");
+                    messengerClientGUI.ergaenzeBild(image.imageData);
+                    messengerClientGUI.ergaenzeNachrichten("\n\n");
                 }
 
                 case ACCESS -> {
@@ -157,6 +160,7 @@ public class MessengerClient extends Client {
 
     public void bildSenden(List<String> _receivers, byte[] _imageData) {
         if(_imageData.length!=0) {
+            messengerClientGUI.ergaenzeBild(_imageData);
             net.C2S.PacketMessage.Image message = new net.C2S.PacketMessage.Image(_receivers.toArray(new String[0]), _imageData);
             send(new FriendlyBuffer().putInt(message.getPacketId()).putPacketData(message));
         }

@@ -15,6 +15,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serial;
+import java.util.Arrays;
 
 public class MessengerClientGUI extends JFrame {
     /**
@@ -28,7 +29,7 @@ public class MessengerClientGUI extends JFrame {
     private final DefaultListModel<String> lstTeilnehmerModel = new DefaultListModel<>();
     private final JScrollPane lstTeilnehmerScrollPane = new JScrollPane(lstTeilnehmer);
     private final JLabel lTeilnehmer = new JLabel();
-    private final JTextArea taNachrichten = new JTextArea("");
+    private final JTextPane taNachrichten = new JTextPane();
     private final JScrollPane taNachrichtenScrollPane = new JScrollPane(taNachrichten);
     private final JLabel lProtokoll = new JLabel();
     private final JTextField tfNachricht = new JTextField();
@@ -90,8 +91,9 @@ public class MessengerClientGUI extends JFrame {
         taNachrichtenScrollPane.setBounds(16, 107, 385, 217);
         taNachrichtenScrollPane.setHorizontalScrollBarPolicy(
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        taNachrichten.setLineWrap(true);
+
         cp.add(taNachrichtenScrollPane);
+        taNachrichten.setEditable(false);
         DefaultCaret caret = (DefaultCaret) taNachrichten.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
@@ -235,7 +237,11 @@ public class MessengerClientGUI extends JFrame {
     }
 
     public void ergaenzeNachrichten(String pNachricht) {
-        taNachrichten.append(pNachricht + "\n\n");
+        taNachrichten.setText(taNachrichten.getText() + pNachricht + "\n\n");
+    }
+
+    public void ergaenzeBild(byte[] bild) {
+        taNachrichten.insertIcon(new ImageIcon(bild));
     }
 
     public void ergaenzeTeilnehmerListe(String pName) {
