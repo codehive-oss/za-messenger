@@ -6,22 +6,27 @@
  */
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.Serial;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultCaret;
+import javax.swing.text.Document;
 
 public class MessengerClientGUI extends JFrame {
     /** */
     @Serial private static final long serialVersionUID = 2749433956491096074L;
 
-    // Anfang Attribute
     private final JLabel lProgrammtitel = new JLabel();
     private final JList<String> lstTeilnehmer = new JList<>();
     private final DefaultListModel<String> lstTeilnehmerModel = new DefaultListModel<>();
     private final JScrollPane lstTeilnehmerScrollPane = new JScrollPane(lstTeilnehmer);
     private final JLabel lTeilnehmer = new JLabel();
-    private final JTextArea taNachrichten = new JTextArea("");
+    private final JTextPane taNachrichten = new JTextPane();
     private final JScrollPane taNachrichtenScrollPane = new JScrollPane(taNachrichten);
     private final JLabel lProtokoll = new JLabel();
     private final JTextField tfNachricht = new JTextField();
@@ -30,9 +35,9 @@ public class MessengerClientGUI extends JFrame {
     private final JButton bRegister = new JButton();
     private final JButton bLogIn = new JButton();
     private final JButton bLogOut = new JButton();
-    // Ende Attribute
+    private final JButton bImg = new JButton();
+    private final JFileChooser fileChooser = new JFileChooser();
 
-    // Eigene Attribute
     private static final String WINDOW_TITLE = "Messenger Client GUI";
     private static final String CONST_SERVERIP = "127.0.0.1";
     private static final int CONST_SERVERPORT = 20017;
@@ -43,7 +48,6 @@ public class MessengerClientGUI extends JFrame {
     }
 
     public MessengerClientGUI(String pServerIp, int pPort) {
-        // Frame-Initialisierung
         super(WINDOW_TITLE);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         int frameWidth = 592;
@@ -57,8 +61,6 @@ public class MessengerClientGUI extends JFrame {
         Container cp = getContentPane();
         cp.setLayout(null);
 
-        // Anfang Komponenten
-
         lProgrammtitel.setBounds(16, 19, 116, 28);
         lProgrammtitel.setText("Messenger");
         lProgrammtitel.setFont(new Font("Dialog", Font.BOLD, 20));
@@ -67,6 +69,16 @@ public class MessengerClientGUI extends JFrame {
         lstTeilnehmer.setModel(lstTeilnehmerModel);
         lstTeilnehmerScrollPane.setBounds(416, 112, 145, 297);
         lstTeilnehmer.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        lstTeilnehmer.addListSelectionListener(
+                e -> {
+                    if (lstTeilnehmer.getSelectedValuesList().isEmpty()) {
+                        bSenden.setEnabled(false);
+                        bImg.setEnabled(false);
+                    } else {
+                        bSenden.setEnabled(true);
+                        bImg.setEnabled(true);
+                    }
+                });
         cp.add(lstTeilnehmerScrollPane);
 
         lTeilnehmer.setBounds(416, 83, 133, 20);
@@ -77,8 +89,9 @@ public class MessengerClientGUI extends JFrame {
         taNachrichtenScrollPane.setBounds(16, 107, 385, 217);
         taNachrichtenScrollPane.setHorizontalScrollBarPolicy(
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        taNachrichten.setLineWrap(true);
+
         cp.add(taNachrichtenScrollPane);
+        taNachrichten.setEditable(false);
         DefaultCaret caret = (DefaultCaret) taNachrichten.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
@@ -86,16 +99,46 @@ public class MessengerClientGUI extends JFrame {
         lProtokoll.setText("Nachrichtenverlauf");
         cp.add(lProtokoll);
 
-        tfNachricht.setBounds(16, 363, 313, 33);
+        tfNachricht.setBounds(16, 363, 258, 33);
         cp.add(tfNachricht);
 
         lNachricht.setBounds(16, 339, 142, 20);
         lNachricht.setText("Eigene Nachricht");
         cp.add(lNachricht);
 
-        bSenden.setBounds(336, 363, 65, 33);
+        FileNameExtensionFilter imageFilter =
+                new FileNameExtensionFilter("Image files", ImageIO.getReaderFileSuffixes());
+        fileChooser.setFileFilter(imageFilter);
+        cp.add(fileChooser);
+
+        bImg.setBounds(279, 363, 50, 33);
+        bImg.setText("IMG");
+        bImg.setMargin(new Insets(2, 2, 2, 2));
+        bImg.setEnabled(false);
+        bImg.addActionListener(
+                e -> {
+                    int res = fileChooser.showDialog(this, "Bild Wählen");
+                    if (res == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            BufferedImage image = ImageIO.read(fileChooser.getSelectedFile());
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ImageIO.write(image, "png", baos);
+                            byte[] imageInByte = baos.toByteArray();
+                            messengerClient.bildSenden(
+                                    lstTeilnehmer.getSelectedValuesList(), imageInByte);
+                            JOptionPane.showMessageDialog(this, "Bild gesendet");
+
+                        } catch (IOException | IllegalArgumentException ex) {
+                            JOptionPane.showMessageDialog(this, "FEHLER");
+                        }
+                    }
+                });
+        cp.add(bImg);
+
+        bSenden.setBounds(341, 363, 65, 33);
         bSenden.setText("Senden");
         bSenden.setMargin(new Insets(2, 2, 2, 2));
+        bSenden.setEnabled(false);
         bSenden.addActionListener(this::bSenden_ActionPerformed);
         cp.add(bSenden);
 
@@ -158,17 +201,11 @@ public class MessengerClientGUI extends JFrame {
         bLogOut.setEnabled(false);
         bLogOut.addActionListener(this::bLogOut_ActionPerformed);
         cp.add(bLogOut);
-        // Ende Komponenten
 
-        // Eigene Initialisierungen:
         messengerClient = new MessengerClient(pServerIp, pPort, this);
 
         setVisible(true);
-    } // end of public MessengerClientGUI
-
-    // Anfang Methoden
-
-    // Anfang ActionListener-Methoden
+    }
 
     public void bSenden_ActionPerformed(ActionEvent evt) {
         if (!lstTeilnehmer.getSelectedValuesList().isEmpty()) {
@@ -176,21 +213,18 @@ public class MessengerClientGUI extends JFrame {
                     lstTeilnehmer.getSelectedValuesList(), tfNachricht.getText());
             tfNachricht.setText("");
         }
-    } // end of bSenden_ActionPerformed
+    }
 
     public void bLogOut_ActionPerformed(ActionEvent evt) {
         messengerClient.abmelden();
-    } // end of bLogOut_ActionPerformed
-
-    //
-    // // Ende ActionListener-Methoden
-    //
-    // // Anfang eigene Methoden
+    }
 
     public void initialisiereNachAnmeldung() {
         bLogIn.setEnabled(false);
         bRegister.setEnabled(false);
         bLogOut.setEnabled(true);
+        bSenden.setEnabled(true);
+        bImg.setEnabled(true);
     }
 
     public void leereNachLogout() {
@@ -198,10 +232,21 @@ public class MessengerClientGUI extends JFrame {
         lstTeilnehmerModel.clear();
         bLogIn.setEnabled(true);
         bLogOut.setEnabled(false);
+        bSenden.setEnabled(false);
+        bImg.setEnabled(false);
     }
 
     public void ergaenzeNachrichten(String pNachricht) {
-        taNachrichten.append(pNachricht + "\n\n");
+        try {
+            Document docs = taNachrichten.getDocument();
+            docs.insertString(docs.getLength(), pNachricht + "\n\n", null);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void ergaenzeBild(byte[] bild) {
+        ImageIcon scaled = new ImageIcon(new ImageIcon(bild).getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH));
+        taNachrichten.insertIcon(scaled);
     }
 
     public void ergaenzeTeilnehmerListe(String pName) {
@@ -215,4 +260,4 @@ public class MessengerClientGUI extends JFrame {
     public static void main(String[] args) {
         new MessengerClientGUI();
     }
-} // end of class MessengerClientGUI
+}
