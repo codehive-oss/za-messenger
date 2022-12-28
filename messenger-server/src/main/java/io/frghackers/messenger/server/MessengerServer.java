@@ -14,7 +14,6 @@ import io.frghackers.messenger.server.db.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -22,7 +21,7 @@ public class MessengerServer extends Server {
     private static final Logger logger = LoggerFactory.getLogger(MessengerServer.class);
 
     // TODO: Convert this to a hashmap of client ids and member data
-    private List<Member> members;
+    private final List<Member> members;
     private final UserRepository userRepository;
 
     public MessengerServer() {
@@ -45,6 +44,7 @@ public class MessengerServer extends Server {
 
     @Override
     public void processNewConnection(String _clientIp, int _clientPort) {
+        logger.info("new connection from " + _clientIp);
         PacketWelcome welcome = new PacketWelcome("Willkommen auf dem Messenger-Server!");
         send(
                 _clientIp,
@@ -56,7 +56,7 @@ public class MessengerServer extends Server {
     public synchronized void processMessage(
             String _clientIp, int _clientPort, FriendlyBuffer _buffer) {
         ClientToServer msgId = ClientToServer.fromId(_buffer.getInt());
-        logger.info("Server:" + msgId);
+        logger.info("new message: " + msgId);
 
         if (!isClientLoggedIn(_clientIp, _clientPort)) {
             switch (msgId) {
@@ -218,9 +218,8 @@ public class MessengerServer extends Server {
 
     @Override
     public synchronized void processClosingConnection(String _clientIp, int _clientPort) {
-        if (isConnectedTo(_clientIp, _clientPort)) {
-            send(_clientIp, _clientPort, new FriendlyBuffer().putInt(ServerToClient.BYE.getId()));
-        }
+        logger.info("Closed connection to " + _clientIp);
+        send(_clientIp, _clientPort, new FriendlyBuffer().putInt(ServerToClient.BYE.getId()));
     }
 
     private void loginMember(String _clientIp, int _clientPort, String pName) {
@@ -321,7 +320,7 @@ public class MessengerServer extends Server {
     }
 
     private ArrayList<String> getAllMember() {
-        ArrayList<String> allMembers = new ArrayList<String>();
+        ArrayList<String> allMembers = new ArrayList<>();
 
         members.toFirst();
         while (members.hasAccess()) {
@@ -331,7 +330,4 @@ public class MessengerServer extends Server {
         return allMembers;
     }
 
-    public static void main(String[] args) {
-        new MessengerServer();
-    }
 }
